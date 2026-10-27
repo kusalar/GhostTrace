@@ -1,7 +1,7 @@
 # GhostTrace Architecture Specification
 
-> **Status:** Step 01 / 10 — Foundation & Configuration  
-> **Note:** Only the foundation, configuration, logging, and package structure are currently implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented in Step 01.
+> **Status:** Step 02 / 10 — Interactive Terminal Interface & CLI  
+> **Note:** Foundation, Configuration, Logging, Textual TUI, and Typer CLI are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
 
 ---
 
@@ -14,11 +14,30 @@
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                       GhostTrace Terminal                       │
-│             (Planned: Rich Console + Textual TUI)               │
+│                    GhostTrace CLI (Typer)                       │
+│           (ghosttrace, --version, --help, status)               │
 └───────────────────────────────┬─────────────────────────────────┘
-                                │
-        ┌───────────────────────┼───────────────────────┐
+                                │ launches
+┌───────────────────────────────▼─────────────────────────────────┐
+│             Interactive Terminal Interface (Textual)            │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ GhostTraceHeader (Branding, Status, Honest Disconnects)   │  │
+│  ├─────────────────────────────┬─────────────────────────────┤  │
+│  │ ConversationLog (Scrollable)│ StatusPanel (Telemetry)     │  │
+│  ├─────────────────────────────┴─────────────────────────────┤  │
+│  │ CommandInput (History Nav: Up/Down, Prompt: 'ghost>')     │  │
+│  ├───────────────────────────────────────────────────────────┤  │
+│  │ Footer (Shortcuts: Enter, Ctrl+L, Ctrl+C, Escape)         │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │ dispatches
+┌───────────────────────────────▼─────────────────────────────────┐
+│                    Command System & History                     │
+│  ┌─────────────────────────────┐ ┌───────────────────────────┐  │
+│  │ CommandRegistry (Routing)   │ │ SessionHistory (In-Memory)│  │
+│  └─────────────────────────────┘ └───────────────────────────┘  │
+└───────┬───────────────────────┬───────────────────────┬─────────┘
+        │                       │                       │
         ▼                       ▼                       ▼
 ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
 │  AI Engine   │        │ Ghost Persona│        │Safety Guard  │
@@ -42,81 +61,70 @@
 ### `ghosttrace.config` (Implemented in Step 01)
 - **Status:** Implemented.
 - **Responsibility:** Centralized configuration management using Pydantic Settings (`BaseSettings`).
-- **Features:**
-  - Type-safe validation of environment, debug mode, log levels, and directory paths.
-  - Environment variable overrides with the `GHOSTTRACE_` prefix.
-  - Cross-platform Windows path resolution (`pathlib.Path`).
-  - Safe default data directories outside repository roots (`%LOCALAPPDATA%\GhostTrace`).
-  - Cached singleton retrieval (`get_settings()`) with unit-test isolation capabilities.
+- **Features:** Type-safe settings, environment variable overrides (`GHOSTTRACE_*`), Windows user path resolution (`%LOCALAPPDATA%\GhostTrace`), cached singleton retrieval.
 
 ### `ghosttrace.core` (Implemented in Step 01)
-- **Status:** Implemented (Logging & Foundation).
+- **Status:** Implemented (Logging & Shared Foundation).
 - **Responsibility:** Common runtime primitives, error types, and logging infrastructure.
-- **Features:**
-  - Rotating file logging (10 MB per file, 5 backups) and console stream output.
-  - Automatic directory provisioning.
-  - Safe initialization preventing duplicate handlers.
-  - Strict privacy enforcement: forbids logging secrets, passwords, or raw proprietary code.
+- **Features:** Dual console and 10 MB rotating file logging, safe handler registration, strict privacy enforcement.
 
-### `ghosttrace.ai` (Planned — Steps 03, 04)
-- **Status:** Package initialized; implementation planned.
-- **Responsibility:** Local open-weight LLM inference orchestration.
-- **Planned Design:**
-  - Runtime: `llama-cpp-python` binding to `llama.cpp` using Qwen2.5 Instruct GGUF.
-  - Quantization: 4-bit / 5-bit (Q4_K_M) optimized for CPU execution on 12 GB RAM (Intel i3-1115G4).
-  - Context budgeting: Strict sliding window tokens with KV cache quantization to respect hardware limits.
-  - Zero external network dependencies.
+### `ghosttrace.terminal` (Implemented in Step 02)
+- **Status:** Implemented (Interactive TUI & CLI Architecture).
+- **Responsibility:** User interaction, presentation, command execution routing, and session history.
+- **Components:**
+  - `GhostTraceApp`: Textual application orchestrating the visual layout and keyboard event lifecycle.
+  - `GhostTraceHeader`: Displays branding, entity status (`AWAKE`), and AI status (`NOT CONNECTED`).
+  - `ConversationLog`: Scrollable log managing user command exchanges and formatted outputs.
+  - `StatusPanel`: Live telemetry panel reflecting environment, version, and active command counts.
+  - `CommandInput`: Specialized input widget supporting Up/Down arrow session history cycling.
+  - `CommandRegistry`: Decoupled registry routing input to registered command handlers with alias resolution.
+  - `SessionHistory`: Lightweight in-memory FIFO history excluding blank inputs and self-referential commands.
+  - `interface`: High-level entry points for interactive TUI launch and non-interactive Rich CLI reporting.
 
-### `ghosttrace.ghost` (Planned — Step 06)
+### `ghosttrace.ai` (Planned — Step 03)
 - **Status:** Package initialized; implementation planned.
-- **Responsibility:** Persona state machine, contextual dialogue, and atmospheric terminal haunting.
-- **Planned Design:**
-  - Dynamic mood and haunting intensity based on developer activity, compilation failures, and time of day.
-  - Atmospheric ASCII art, glitch text, and subtle terminal easter eggs.
+- **Responsibility:** Local open-weight LLM inference orchestration via `llama-cpp-python` / `llama.cpp` using Qwen2.5 Instruct GGUF.
 
-### `ghosttrace.terminal` (Planned — Step 05)
+### `ghosttrace.ghost` (Planned — Step 04)
 - **Status:** Package initialized; implementation planned.
-- **Responsibility:** Terminal UI rendering, REPL loop, and syntax-highlighted command output.
-- **Planned Design:**
-  - Built with `Rich` and `Textual`.
-  - Non-blocking asynchronous event loop allowing background AI token streaming while maintaining a responsive CLI.
+- **Responsibility:** Persona state machine, contextual dialogue, dynamic haunting intensity, and atmospheric terminal effects.
 
-### `ghosttrace.safety` (Planned — Step 07)
+### `ghosttrace.safety` (Planned — Step 06)
 - **Status:** Package initialized; implementation planned.
-- **Responsibility:** Terminal guardian analyzing commands before execution.
-- **Planned Design:**
-  - Multi-tier danger classification: `SAFE`, `WARNING`, `DANGEROUS`, `BLOCKED`.
-  - Heuristic AST and regex matching for destructive operations (e.g., recursive deletion, disk formatting, sensitive environment dumping).
-  - Optional local AI safety verification for ambiguous shell commands.
+- **Responsibility:** Terminal guardian analyzing shell commands before execution with multi-tier risk classification (`SAFE`, `WARNING`, `DANGEROUS`, `BLOCKED`).
 
-### `ghosttrace.memory` (Planned — Step 08)
+### `ghosttrace.memory` (Planned — Step 07)
 - **Status:** Package initialized; implementation planned.
-- **Responsibility:** Persistent local state, session history, and persona memory.
-- **Planned Design:**
-  - SQLite backend residing in `%LOCALAPPDATA%\GhostTrace\db\ghosttrace.db`.
-  - WAL mode (Write-Ahead Logging) for atomic, crash-resilient operations.
-  - Clean retention policies allowing the user to prune or wipe history at any time.
+- **Responsibility:** Persistent local state, session history, and persona memory backed by SQLite in WAL mode.
 
-### `ghosttrace.system` (Planned — Step 09)
+### `ghosttrace.system` (Planned — Step 08)
 - **Status:** Package initialized; implementation planned.
-- **Responsibility:** Local OS telemetry and hardware capability inspection.
-- **Planned Design:**
-  - Non-invasive resource monitoring (CPU load, RAM pressure).
-  - Dynamically throttles AI inference when system memory is constrained.
+- **Responsibility:** Non-invasive local OS telemetry and hardware capability monitoring (CPU load, RAM pressure).
 
 ---
 
-## 3. Data Privacy & Security Principles
+## 3. Agreed 10-Step Development Roadmap
 
-1. **Strict Offline Execution:** GhostTrace operates strictly locally. No prompt, shell command, code snippet, or diagnostic ever leaves the host machine.
-2. **No Secret Logging:** Tokens, keys, passwords, and sensitive environment variables are filtered from all application log files.
-3. **User-Owned Data:** All configuration and persistent databases reside within standard user application data paths (`%LOCALAPPDATA%\GhostTrace`), fully inspectable and deletable by the user.
-4. **Non-Destructive Defaults:** By default, command suggestions require explicit user confirmation before shell execution.
+1. **Step 01: Foundation, Environment & Configuration** *(Completed)*
+2. **Step 02: Interactive Terminal Interface & CLI** *(Completed)*
+3. **Step 03: Local AI Integration**
+4. **Step 04: Ghost Personality & Behaviour Engine**
+5. **Step 05: Developer Intelligence & Coding Assistance**
+6. **Step 06: Command Guardian & Execution Safety**
+7. **Step 07: Persistent Memory & Project Context**
+8. **Step 08: System Awareness & Diagnostics**
+9. **Step 09: Haunted Experience & Interactive Events**
+10. **Step 10: Testing, Optimization, Packaging & Release**
 
 ---
 
-## 4. Hardware Optimization Strategy (Intel i3-1115G4 / 12 GB RAM)
+## 4. Terminal Visual Design & Aesthetics
 
-- **Target Architecture:** Dual-core / 4-thread CPU with AVX2 instruction support.
-- **Inference Budget:** Thread count capped at 3 or 4 threads to prevent UI lockup.
-- **Memory Footprint:** Peak process memory ceiling bounded at ≤ 4.5 GB for LLM weights and context buffer, preserving the remaining RAM for the operating system and developer tools.
+- **Palette:** Green phosphor CRT monitor aesthetic.
+  - Primary Background: `#080c0a` (deep charcoal black)
+  - Surface Background: `#050807` (dark container background)
+  - Primary Accent: `#00ff66` / `#33ff33` (phosphor green)
+  - Secondary Text: `#779977` / `#99bb99` (muted green-gray)
+  - Warning/Alerts: `#ff5555` (muted crimson red)
+  - Borders: `#00441b` / `#005522` (subtle dark green borders)
+- **Zero Overhead:** No continuous animations, heavy background threads, or GPU dependencies; perfectly suited for Intel UHD Graphics and 12 GB RAM.

@@ -21,11 +21,11 @@ Modern AI developer tools are overwhelmingly cloud-tethered, sending proprietary
 
 - **Language & Runtime:** Python 3.11 (64-bit on Windows 10/11)
 - **Configuration & Validation:** Pydantic 2.x & Pydantic Settings
-- **Testing & Quality:** pytest, pytest-cov, Ruff
+- **Terminal UI Engine:** Textual & Rich
+- **CLI Framework:** Typer
+- **Testing & Quality:** pytest, pytest-cov, pytest-asyncio, Ruff
 - **Planned AI Subsystem:** Qwen2.5 Instruct GGUF executed via `llama-cpp-python` / `llama.cpp`
-- **Planned Terminal UI:** Rich + Textual
 - **Planned Persistence:** SQLite (WAL mode)
-- **Planned Command CLI:** Typer
 
 ---
 
@@ -51,29 +51,33 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 | **Python Virtual Environment** | **Completed** | Python 3.11 `.venv` isolation |
 | **Centralized Configuration** | **Completed** | Pydantic Settings with env overrides and path safety |
 | **Logging Infrastructure** | **Completed** | Rotating file logging (10 MB x 5) and console output |
-| **Entry Point CLI** | **Completed** | `ghosttrace` executable and `python -m ghosttrace.main` |
-| **Testing Suite** | **Completed** | Deterministic pytest suite (100% test coverage) |
-| **Code Formatting & Linting**| **Completed** | Full Ruff rule enforcement and code formatting |
-| *Local AI Model Engine* | *Planned* | Step 02 / 03: GGUF pipeline and local llama.cpp engine |
-| *Terminal Interface* | *Planned* | Step 05: Rich / Textual interactive TUI |
-| *Ghost Persona Engine* | *Planned* | Step 06: Atmospheric reactions and behavioral states |
-| *Terminal Guardian* | *Planned* | Step 07: Safety interceptor and command risk classifier |
-| *Persistent Memory* | *Planned* | Step 08: SQLite history and session management |
+| **Interactive Terminal UI** | **Completed** | Textual green-phosphor CRT interface & live telemetry |
+| **Command System & History** | **Completed** | Command registry, argument parser, in-memory history |
+| **CLI Framework** | **Completed** | Typer entry point with `status`, `--version`, `--help` |
+| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (>98% coverage) |
+| *Local AI Integration* | *Planned* | Step 03: GGUF pipeline and local llama.cpp engine |
+| *Ghost Persona Engine* | *Planned* | Step 04: Atmospheric reactions and behavioral states |
+| *Developer Intelligence* | *Planned* | Step 05: Code synthesis, explanation, and error triage |
+| *Terminal Guardian* | *Planned* | Step 06: Safety interceptor and command risk classifier |
+| *Persistent Memory* | *Planned* | Step 07: SQLite history and session management |
+| *System Diagnostics* | *Planned* | Step 08: OS telemetry and hardware resource adaptation |
+| *Haunted Experience* | *Planned* | Step 09: Interactive events and atmospheric haunting |
+| *Packaging & Hardening* | *Planned* | Step 10: Production release packaging and distribution |
 
 ---
 
 ## 5. 10-Step Development Roadmap
 
-- [x] **Step 01: Project Foundation, Environment & Configuration** *(Current)*
-- [ ] **Step 02: Model Management & GGUF Pipeline**
-- [ ] **Step 03: Local Inference Engine (llama.cpp integration)**
-- [ ] **Step 04: Prompt Architecture & Streaming AI Orchestration**
-- [ ] **Step 05: Rich & Textual Terminal Interface**
-- [ ] **Step 06: Digital Ghost Persona & Atmospheric Engine**
-- [ ] **Step 07: Terminal Guardian & Command Safety System**
-- [ ] **Step 08: Persistent Memory & SQLite History**
-- [ ] **Step 09: System Telemetry & Hardware Resource Adaptation**
-- [ ] **Step 10: Packaging, Distribution & Production Hardening**
+- [x] **Step 01: Foundation, Environment & Configuration**
+- [x] **Step 02: Interactive Terminal Interface & CLI** *(Current)*
+- [ ] **Step 03: Local AI Integration**
+- [ ] **Step 04: Ghost Personality & Behaviour Engine**
+- [ ] **Step 05: Developer Intelligence & Coding Assistance**
+- [ ] **Step 06: Command Guardian & Execution Safety**
+- [ ] **Step 07: Persistent Memory & Project Context**
+- [ ] **Step 08: System Awareness & Diagnostics**
+- [ ] **Step 09: Haunted Experience & Interactive Events**
+- [ ] **Step 10: Testing, Optimization, Packaging & Release**
 
 ---
 
@@ -93,15 +97,10 @@ Clone or open the repository in PowerShell:
 cd D:\GhostTrace
 ```
 
-Create the Python 3.11 virtual environment:
+Create and activate the Python 3.11 virtual environment:
 
 ```powershell
 py -3.11 -m venv .venv
-```
-
-Activate the virtual environment:
-
-```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
@@ -127,47 +126,97 @@ Copy the example environment file:
 Copy-Item .env.example .env
 ```
 
-Application settings can be configured via `.env` or standard environment variables prefixed with `GHOSTTRACE_`:
-
-- `GHOSTTRACE_ENV`: Operational environment (`development`, `production`, `testing`). Default: `development`.
-- `GHOSTTRACE_DEBUG`: Enable debug output (`true` / `false`). Default: `false`.
-- `GHOSTTRACE_LOG_LEVEL`: Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Default: `INFO`.
-- `GHOSTTRACE_APP_DATA_DIR`: Base storage path. Default: `%LOCALAPPDATA%\GhostTrace`.
-
 ---
 
-## 7. Launching the Application
+## 7. Command-Line Interface (CLI)
 
-Execute GhostTrace directly through either method:
+GhostTrace provides a CLI built with Typer:
 
-### Method A: Console Entry Point
+### 7.1 Interactive Terminal Mode (Default)
+Launch the full Textual haunted terminal interface:
 ```powershell
 ghosttrace
-```
-
-### Method B: Python Module Invocation
-```powershell
+# or via Python module
 python -m ghosttrace.main
 ```
 
-Expected startup output:
-```text
-==================================================
- GhostTrace v0.1.0
- Offline-first AI-powered haunted terminal companion.
-==================================================
-Environment : development
-Log Level   : INFO
-App Data    : C:\Users\<User>\AppData\Local\GhostTrace
-Logs        : C:\Users\<User>\AppData\Local\GhostTrace\logs
---------------------------------------------------
-Foundation initialized successfully. Ready for Step 02.
-==================================================
+### 7.2 Non-Interactive Status Overview
+Print a Rich diagnostic report of settings and roadmap status directly to stdout:
+```powershell
+ghosttrace status
+```
+
+### 7.3 Version Information
+```powershell
+ghosttrace --version
+# Output: GhostTrace v0.2.0
+```
+
+### 7.4 Help Information
+```powershell
+ghosttrace --help
 ```
 
 ---
 
-## 8. Testing & Code Quality
+## 8. Interactive Terminal Commands & Keyboard Shortcuts
+
+Inside the interactive terminal interface, enter commands at the `ghost>` prompt:
+
+### Built-in Commands
+
+| Command | Description |
+| :--- | :--- |
+| `help` (or `?`) | Displays all available commands with descriptions. Use `help <cmd>` for specific usage. |
+| `about` (or `info`) | Displays project vision, triple identity, and target specifications. |
+| `status` | Displays application status distinguishing implemented from planned features. |
+| `version` (or `v`) | Displays the GhostTrace version. |
+| `clear` (or `cls`) | Clears the scrollable conversation log. |
+| `history` (or `hist`) | Lists commands entered during the active session. |
+| `ai` | Displays AI engine status (`AI ENGINE: NOT CONNECTED`, scheduled for Step 03). |
+| `ghost` | Displays ghost subsystem status (`PERSONALITY ENGINE: NOT IMPLEMENTED`, scheduled for Step 04). |
+| `exit` (or `quit`, `q`)| Gracefully terminates the terminal session. |
+
+### Keyboard Shortcuts
+
+- <kbd>Enter</kbd> — Submit the command in the input field.
+- <kbd>Up Arrow</kbd> — Navigate backwards through session command history.
+- <kbd>Down Arrow</kbd> — Navigate forwards through session command history.
+- <kbd>Ctrl</kbd>+<kbd>L</kbd> — Clear the conversation buffer.
+- <kbd>Ctrl</kbd>+<kbd>C</kbd> — Gracefully exit GhostTrace.
+- <kbd>Escape</kbd> — Reset/clear current input field.
+
+---
+
+## 9. Terminal Interface Visual Layout
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│ GHOSTTRACE v0.2.0    │  ENTITY: AWAKE  │  AI ENGINE: NOT CONNECTED     │
+├──────────────────────────────────────────────┬─────────────────────────┤
+│ ConversationLog                              │ StatusPanel             │
+│                                              │                         │
+│ [Something has awakened inside this terminal]│ GhostTrace v0.2.0       │
+│                                              │                         │
+│ ghost> help                                  │ Environment: development│
+│ +------------------------------------------+ │ Commands Run: 3         │
+│ | Command | Description                    | │                         │
+│ +------------------------------------------+ │ Subsystems:             │
+│ | help    | Show available commands        | │ • Foundation : OK       │
+│ | status  | System diagnostic status       | │ • Interface  : ACTIVE   │
+│ | exit    | Leave GhostTrace               | │ • AI Engine  : OFFLINE  │
+│ +------------------------------------------+ │ • Persona    : STEP 04  │
+│                                              │                         │
+├──────────────────────────────────────────────┴─────────────────────────┤
+│ ghost> [ Enter command (e.g., 'help', 'status', 'ai', 'exit')...     ] │
+├────────────────────────────────────────────────────────────────────────┤
+│ Enter: Submit  │  Ctrl+L: Clear  │  Ctrl+C: Quit  │  Esc: Cancel       │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 10. Testing & Code Quality
 
 Run the automated test suite with coverage report:
 
@@ -189,6 +238,6 @@ ruff format --check .
 
 ---
 
-## 9. License
+## 11. License
 
 This project is licensed under the MIT License. See [LICENSE](file:///D:/GhostTrace/LICENSE) for details.

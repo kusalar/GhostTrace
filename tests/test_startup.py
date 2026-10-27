@@ -27,7 +27,7 @@ def cleanup_logging() -> None:
 
 def test_package_importability() -> None:
     """Verify root package metadata and subpackage importability."""
-    assert ghosttrace.__version__ == "0.1.0"
+    assert ghosttrace.__version__ == "0.2.0"
     assert ghosttrace.__app_name__ == "GhostTrace"
 
     # Confirm all planned architectural submodules import cleanly
@@ -40,44 +40,46 @@ def test_package_importability() -> None:
     assert ghosttrace.system is not None
 
 
-def test_main_startup_and_clean_exit(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
-    """Verify main() runs, displays the banner and status, and exits with code 0."""
+def test_main_startup_and_clean_exit(tmp_path: Path) -> None:
+    """Verify main() launches the terminal app cleanly and returns 0."""
     temp_settings = Settings(
         app_data_dir=tmp_path / "app_data",
         log_dir=tmp_path / "logs",
     )
 
-    with patch("ghosttrace.main.get_settings", return_value=temp_settings):
-        exit_code = main()
+    with (
+        patch("ghosttrace.main.get_settings", return_value=temp_settings),
+        patch("ghosttrace.main.run_terminal_app", return_value=0) as mock_run,
+    ):
+        exit_code = main([])
 
     assert exit_code == 0
-    captured = capsys.readouterr()
-    assert "GhostTrace v0.1.0" in captured.out
-    assert "Foundation initialized successfully" in captured.out
+    mock_run.assert_called_once()
 
 
 def test_main_handles_exception_cleanly(capsys: pytest.CaptureFixture[str]) -> None:
     """Verify main() catches unexpected exceptions and returns error exit code 1."""
-    with patch("ghosttrace.main.get_settings", side_effect=RuntimeError("Simulated boot failure")):
-        exit_code = main()
+    with patch(
+        "ghosttrace.main.run_terminal_app", side_effect=RuntimeError("Simulated boot failure")
+    ):
+        exit_code = main([])
 
     assert exit_code == 1
     captured = capsys.readouterr()
-    assert "Fatal error during GhostTrace initialization" in captured.err
+    assert "Fatal error during GhostTrace execution" in captured.err
     assert "Simulated boot failure" in captured.err
 
 
 def test_main_cli_subprocess() -> None:
-    """Verify ghosttrace can be executed directly as a module via subprocess."""
+    """Verify ghosttrace can be executed directly as a module via subprocess with --version."""
     import subprocess
     import sys
 
     result = subprocess.run(
-        [sys.executable, "-m", "ghosttrace.main"],
+        [sys.executable, "-m", "ghosttrace.main", "--version"],
         capture_output=True,
         text=True,
         check=False,
     )
     assert result.returncode == 0
-    assert "GhostTrace v0.1.0" in result.stdout
-    assert "Foundation initialized successfully" in result.stdout
+    assert "GhostTrace v0.2.0" in result.stdout

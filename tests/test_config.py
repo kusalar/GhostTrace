@@ -12,7 +12,7 @@ def test_default_configuration() -> None:
     settings = Settings()
 
     assert settings.app_name == "GhostTrace"
-    assert settings.app_version == "0.1.0"
+    assert settings.app_version == "0.2.0"
     assert "haunted" in settings.app_description.lower()
     assert settings.env == "development"
     assert settings.debug is False

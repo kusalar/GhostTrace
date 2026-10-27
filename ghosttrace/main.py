@@ -1,36 +1,62 @@
-"""Application entry point for GhostTrace."""
+"""Application entry point and CLI architecture for GhostTrace."""
+
+from __future__ import annotations
 
 import sys
 
+import typer
+
 from ghosttrace.config.settings import get_settings
-from ghosttrace.core.logging import get_logger, setup_logging
+from ghosttrace.terminal.interface import render_cli_status, run_terminal_app
+
+app = typer.Typer(
+    name="ghosttrace",
+    help="GhostTrace — The AI That Haunts Your Terminal.",
+    add_completion=False,
+    no_args_is_help=False,
+)
 
 
-def main() -> int:
-    """Initialize configuration, set up logging, display status, and exit cleanly."""
-    try:
+def version_callback(value: bool) -> None:
+    """Print GhostTrace version and exit cleanly."""
+    if value:
         settings = get_settings()
-        setup_logging(settings)
-        logger = get_logger("ghosttrace.main")
+        print(f"{settings.app_name} v{settings.app_version}")
+        raise typer.Exit(0)
 
-        logger.info("Initializing GhostTrace foundation...")
 
-        print("==================================================")
-        print(f" {settings.app_name} v{settings.app_version}")
-        print(f" {settings.app_description}")
-        print("==================================================")
-        print(f"Environment : {settings.env}")
-        print(f"Log Level   : {settings.log_level}")
-        print(f"App Data    : {settings.app_data_dir}")
-        print(f"Logs        : {settings.log_dir}")
-        print("--------------------------------------------------")
-        print("Foundation initialized successfully. Ready for Step 02.")
-        print("==================================================")
+@app.callback(invoke_without_command=True)
+def default_entry(
+    ctx: typer.Context,
+    version: bool = typer.Option(
+        None,
+        "--version",
+        "-v",
+        help="Show GhostTrace version and exit.",
+        callback=version_callback,
+        is_eager=True,
+    ),
+) -> None:
+    """GhostTrace default entry point: launches the interactive terminal."""
+    if ctx.invoked_subcommand is None:
+        run_terminal_app()
 
-        logger.info("GhostTrace foundation initialized cleanly.")
+
+@app.command(name="status", help="Display GhostTrace configuration and subsystem status.")
+def status_command() -> None:
+    """Display system status non-interactively via Rich."""
+    render_cli_status()
+
+
+def main(args: list[str] | None = None) -> int:
+    """Standard CLI entry point returning exit code."""
+    try:
+        app(args=args, standalone_mode=False)
         return 0
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 0
     except Exception as exc:
-        print(f"Fatal error during GhostTrace initialization: {exc}", file=sys.stderr)
+        print(f"Fatal error during GhostTrace execution: {exc}", file=sys.stderr)
         return 1
 
 
