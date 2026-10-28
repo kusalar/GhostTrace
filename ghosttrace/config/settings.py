@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Application Metadata
     app_name: str = "GhostTrace"
-    app_version: str = "0.7.0"
+    app_version: str = "0.8.0"
     app_description: str = "Offline-first AI-powered haunted terminal companion."
 
     # Environment & Execution Mode
@@ -243,6 +243,28 @@ class Settings(BaseSettings):
         description=(
             "Explicit path to SQLite database. Defaults to {app_data_dir}/db/ghosttrace.db."
         ),
+    )
+
+    # System Awareness & Diagnostics (Step 08)
+    system_enabled: bool = Field(
+        default=True,
+        description="Enable or disable system awareness and diagnostics subsystem.",
+    )
+    system_cache_seconds: float = Field(
+        default=3.0,
+        description="Cache TTL in seconds for system resource metric sampling.",
+    )
+    system_process_details: bool = Field(
+        default=False,
+        description="Enable detailed process metrics for GhostTrace.",
+    )
+    system_include_hostname: bool = Field(
+        default=False,
+        description="Include local machine hostname in platform diagnostics.",
+    )
+    system_diagnostics_export: bool = Field(
+        default=False,
+        description="Enable diagnostic report export functionality.",
     )
 
     model_config = SettingsConfigDict(
@@ -504,6 +526,14 @@ class Settings(BaseSettings):
     def validate_context_max_total_chars(cls, value: int) -> int:
         if not (500 <= value <= 100000):
             msg = f"Invalid context_max_total_chars {value}. Must be between 500 and 100000."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("system_cache_seconds")
+    @classmethod
+    def validate_system_cache_seconds(cls, value: float) -> float:
+        if not (0.0 <= value <= 60.0):
+            msg = f"Invalid system_cache_seconds {value}. Must be between 0.0 and 60.0."
             raise ValueError(msg)
         return value
 

@@ -59,7 +59,7 @@ def handle_about(args: list[str], context: CommandContext) -> CommandResult:
         "  • Architecture : Fully offline-first, local CPU inference",
         "  • Platform     : Windows 10/11 64-bit native",
         "  • Target Spec  : Intel Core i3-1115G4, 12 GB RAM, Intel UHD graphics",
-        "  • Status       : Step 07 / 10 — Persistent Memory & Project Context",
+        "  • Status       : Step 08 / 10 — System Awareness & Diagnostics",
     ]
     return CommandResult(success=True, output="\n".join(lines))
 
@@ -91,6 +91,12 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         from ghosttrace.memory.engine import MemoryEngine
 
         mem_engine = MemoryEngine(context.settings)
+
+    sys_engine = context.system_engine
+    if sys_engine is None:
+        from ghosttrace.system.engine import SystemEngine
+
+        sys_engine = SystemEngine(context.settings)
 
     ai_status = ai_engine.get_status()
     if not ai_status.runtime_available:
@@ -130,6 +136,8 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         p_name = f" (PROJECT: {active_p.name})" if active_p else ""
         mem_status_str = f"[OK] ACTIVE (SQLITE){p_name}"
 
+    sys_status_str = "[!] DISABLED" if not sys_engine.is_enabled else "[OK] ACTIVE (WIN32 / STDLIB)"
+
     lines = [
         "APPLICATION SUBSYSTEM STATUS",
         "==================================================",
@@ -146,7 +154,7 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         f"  Developer Intel (Step 05)   : {dev_status_str}",
         f"  Command Guardian (Step 06)  : {guard_status_str}",
         f"  Persistent Memory (Step 07) : {mem_status_str}",
-        "  System Diagnostics (Step 08): [..] NOT IMPLEMENTED",
+        f"  System Diagnostics (Step 08): {sys_status_str}",
         "==================================================",
     ]
     return CommandResult(success=True, output="\n".join(lines))
@@ -1304,6 +1312,278 @@ def handle_project(args: list[str], context: CommandContext) -> CommandResult:
     )
 
 
+def handle_system(args: list[str], context: CommandContext) -> CommandResult:
+    """System awareness, host telemetry, and internal health diagnostics."""
+    sys_engine = context.system_engine
+    if sys_engine is None:
+        from ghosttrace.system.engine import SystemEngine
+
+        sys_engine = SystemEngine(context.settings)
+
+    subcommand = args[0].lower() if args else "overview"
+    sub_args = args[1:]
+
+    if subcommand in ("help", "-h", "--help"):
+        lines = [
+            "SYSTEM AWARENESS & DIAGNOSTICS COMMANDS",
+            "==================================================",
+            "  system [overview]        — Display host hardware, OS, and resource snapshot",
+            "  system status            — Display subsystem telemetry and cache configuration",
+            "  system cpu               — Display CPU model, core counts, and utilization",
+            "  system memory            — Display physical RAM and page-file utilization",
+            "  system disk              — Display storage capacity on application drives",
+            "  system processes         — Display aggregate process count & app footprint",
+            "  system uptime            — Display operating system and application uptime",
+            "  system health            — Run non-destructive internal subsystem health checks",
+            "  system diagnostics [out] — Compile full diagnostic report (optional JSON export)",
+            "==================================================",
+            "Aliases: sys",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "status":
+        lines = [
+            "SYSTEM AWARENESS TELEMETRY STATUS",
+            "==================================================",
+            f"  Subsystem State    : {'ENABLED' if sys_engine.is_enabled else 'DISABLED'}",
+            f"  Cache Duration     : {sys_engine.collector.cache_ttl} seconds",
+            f"  Include Hostname   : "
+            f"{bool(getattr(context.settings, 'system_include_hostname', False))}",
+            f"  Process Details    : "
+            f"{bool(getattr(context.settings, 'system_process_details', False))}",
+            f"  Diagnostics Export : "
+            f"{bool(getattr(context.settings, 'system_diagnostics_export', False))}",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "cpu":
+        cpu = sys_engine.get_cpu_info()
+        usage_str = f"{cpu.cpu_percent}%" if cpu.cpu_percent is not None else "Unavailable"
+        lines = [
+            "CPU HARDWARE TELEMETRY",
+            "==================================================",
+            f"  Processor Model   : {cpu.model_name}",
+            f"  Logical Cores     : {cpu.logical_cores or 'Unknown'}",
+            f"  Physical Cores    : {cpu.physical_cores or 'Unknown / N/A'}",
+            f"  Current Usage     : {usage_str}",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand in ("memory", "ram"):
+        mem = sys_engine.get_memory_info()
+        lines = [
+            "PHYSICAL RAM TELEMETRY",
+            "==================================================",
+            f"  Total Physical RAM : {mem.total_gb} GB ({mem.total_bytes:,} bytes)",
+            f"  Available RAM      : {mem.available_gb} GB ({mem.available_bytes:,} bytes)",
+            f"  Used RAM           : {mem.used_gb} GB ({mem.used_bytes:,} bytes)",
+            f"  Memory Utilization : {mem.percent_used}%",
+        ]
+        if mem.pagefile_total_bytes is not None and mem.pagefile_available_bytes is not None:
+            pf_total_gb = round(mem.pagefile_total_bytes / (1024**3), 2)
+            pf_avail_gb = round(mem.pagefile_available_bytes / (1024**3), 2)
+            lines.extend(
+                [
+                    "--------------------------------------------------",
+                    f"  Page-file Total    : {pf_total_gb} GB",
+                    f"  Page-file Avail    : {pf_avail_gb} GB",
+                ]
+            )
+        lines.append("==================================================")
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "disk":
+        disk = sys_engine.get_disk_info()
+        if not disk.drives:
+            return CommandResult(success=True, output="No accessible disk volumes found.")
+        table = Table(title="DISK STORAGE VOLUMES", border_style="dim green")
+        table.add_column("Volume", style="bold #00ff66")
+        table.add_column("Free Space", style="#ffffff")
+        table.add_column("Total Capacity", style="#99bb99")
+        table.add_column("Used %", style="bold")
+        for d in disk.drives:
+            table.add_row(
+                d.path,
+                f"{d.free_gb} GB",
+                f"{d.total_gb} GB",
+                f"{d.percent_used}%",
+            )
+        return CommandResult(success=True, output=table)
+
+    if subcommand in ("processes", "proc"):
+        proc = sys_engine.get_process_info()
+        p_count_str = (
+            f"{proc.total_processes}" if proc.total_processes is not None else "Unavailable"
+        )
+        ws_str = (
+            f"{proc.ghosttrace_working_set_mb} MB"
+            if proc.ghosttrace_working_set_mb is not None
+            else "Unavailable"
+        )
+        lines = [
+            "PROCESS TELEMETRY & FOOTPRINT",
+            "==================================================",
+            f"  Total Running Processes : {p_count_str}",
+            f"  GhostTrace PID          : {proc.ghosttrace_pid}",
+            f"  GhostTrace Resident RAM : {ws_str}",
+        ]
+        if proc.ghosttrace_uptime_seconds is not None:
+            from ghosttrace.system.uptime import format_duration
+
+            lines.append(
+                f"  GhostTrace Process Time : {format_duration(proc.ghosttrace_uptime_seconds)}"
+            )
+        lines.append("==================================================")
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "uptime":
+        up = sys_engine.get_uptime_info()
+        lines = [
+            "SYSTEM & APPLICATION UPTIME",
+            "==================================================",
+            f"  Operating System Uptime : {up.system_uptime_formatted}",
+            f"  GhostTrace App Uptime   : {up.app_uptime_formatted}",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "health":
+        health = sys_engine.check_health(
+            ai_engine=context.ai_engine,
+            ghost_engine=context.ghost_engine,
+            dev_engine=context.dev_engine,
+            guardian_engine=context.guardian_engine,
+            memory_engine=context.memory_engine,
+        )
+        table = Table(
+            title=f"SUBSYSTEM HEALTH DIAGNOSTICS [{health.overall_status.value}]",
+            border_style="dim green",
+        )
+        table.add_column("Subsystem", style="bold #00ff66", width=22)
+        table.add_column("Status", style="bold", width=14)
+        table.add_column("Details", style="#99bb99")
+        for name, sub in health.subsystems.items():
+            color = (
+                "#00ff66"
+                if sub.status.value == "HEALTHY"
+                else ("#ffaa00" if sub.status.value in ("DEGRADED", "DISABLED") else "#ff5555")
+            )
+            table.add_row(name, f"[{color}]{sub.status.value}[/]", sub.details)
+        return CommandResult(success=True, output=table)
+
+    if subcommand == "diagnostics":
+        export_target = sub_args[0] if sub_args else None
+        report = sys_engine.generate_diagnostics(
+            ai_engine=context.ai_engine,
+            ghost_engine=context.ghost_engine,
+            dev_engine=context.dev_engine,
+            guardian_engine=context.guardian_engine,
+            memory_engine=context.memory_engine,
+        )
+        if export_target:
+            try:
+                dest = sys_engine.export_diagnostics_json(
+                    target_path=export_target,
+                    report=report,
+                    overwrite=True,
+                )
+                msg = f"Diagnostic report exported successfully to: {dest}"
+                return CommandResult(success=True, output=msg)
+            except Exception as err:
+                return CommandResult(success=False, output=f"Failed exporting diagnostics: {err}")
+
+        # Display formatted report
+        health_val = (
+            report.snapshot.health.overall_status.value if report.snapshot.health else "UNKNOWN"
+        )
+        lines = [
+            "==================================================",
+            f"GHOSTTRACE DIAGNOSTIC REPORT (v{report.app_version})",
+            "==================================================",
+            (
+                f"Platform   : {report.snapshot.platform.os_name} "
+                f"{report.snapshot.platform.os_release} "
+                f"({report.snapshot.platform.architecture})"
+            ),
+            f"Python     : {report.python_version} "
+            f"({report.snapshot.platform.python_executable_arch})",
+            (
+                f"CPU        : {report.snapshot.cpu.model_name} "
+                f"({report.snapshot.cpu.logical_cores} cores, "
+                f"usage: {report.snapshot.cpu.cpu_percent}%)"
+            ),
+            (
+                f"RAM        : {report.snapshot.memory.available_gb} GB avail / "
+                f"{report.snapshot.memory.total_gb} GB total "
+                f"({report.snapshot.memory.percent_used}% used)"
+            ),
+            (
+                f"Uptime     : OS {report.snapshot.uptime.system_uptime_formatted} | "
+                f"App {report.snapshot.uptime.app_uptime_formatted}"
+            ),
+            f"Health     : {health_val}",
+        ]
+        if report.warnings:
+            lines.append("--------------------------------------------------")
+            lines.append("Warnings:")
+            for w in report.warnings:
+                lines.append(f"  • {w}")
+        if report.unavailable_metrics:
+            lines.append("--------------------------------------------------")
+            lines.append("Unavailable Metrics:")
+            for u in report.unavailable_metrics:
+                lines.append(f"  • {u}")
+        lines.append("==================================================")
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "overview":
+        snap = sys_engine.get_snapshot()
+        health = sys_engine.check_health(
+            ai_engine=context.ai_engine,
+            ghost_engine=context.ghost_engine,
+            dev_engine=context.dev_engine,
+            guardian_engine=context.guardian_engine,
+            memory_engine=context.memory_engine,
+        )
+        cpu_usage_str = (
+            f"{snap.cpu.cpu_percent}% usage" if snap.cpu.cpu_percent is not None else "N/A"
+        )
+        cpu_str = f"{snap.cpu.model_name} ({snap.cpu.logical_cores} cores) — {cpu_usage_str}"
+        mem_str = (
+            f"{snap.memory.available_gb} GB free of {snap.memory.total_gb} GB "
+            f"({snap.memory.percent_used}% used)"
+        )
+        disk_parts = [f"{d.path} ({d.free_gb} GB free)" for d in snap.disk.drives]
+        disk_str = ", ".join(disk_parts) if disk_parts else "N/A"
+        lines = [
+            "SYSTEM & RESOURCE OVERVIEW",
+            "==================================================",
+            (
+                f"  Host Platform : {snap.platform.os_name} {snap.platform.os_release} "
+                f"({snap.platform.architecture})"
+            ),
+            (
+                f"  Python Build  : {snap.platform.python_version} "
+                f"({snap.platform.python_executable_arch})"
+            ),
+            f"  Processor     : {cpu_str}",
+            f"  Physical RAM  : {mem_str}",
+            f"  Disk Drives   : {disk_str}",
+            f"  System Uptime : {snap.uptime.system_uptime_formatted}",
+            f"  GhostTrace Up : {snap.uptime.app_uptime_formatted}",
+            f"  Overall Health: [{health.overall_status.value}] {health.summary}",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    return CommandResult(
+        success=False,
+        output=f"Unknown system subcommand: '{subcommand}'. Type 'system help' for usage.",
+    )
+
+
 def create_default_registry() -> CommandRegistry:
     """Create and populate a CommandRegistry with all standard GhostTrace commands."""
     registry = CommandRegistry()
@@ -1415,6 +1695,15 @@ def create_default_registry() -> CommandRegistry:
             usage="project [help|status|add|list|use|info|scan|refresh|remove|clear]",
             aliases=["proj"],
             handler=handle_project,
+        )
+    )
+    registry.register(
+        Command(
+            name="system",
+            description="System awareness, host telemetry, and internal health diagnostics.",
+            usage="system [overview|status|cpu|memory|disk|processes|uptime|health|diagnostics]",
+            aliases=["sys"],
+            handler=handle_system,
         )
     )
     registry.register(

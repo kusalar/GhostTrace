@@ -20,6 +20,7 @@ from ghosttrace.guardian.engine import GuardianEngine
 from ghosttrace.guardian.explanations import format_execution_result
 from ghosttrace.guardian.schemas import ExecutionStatus
 from ghosttrace.memory.engine import MemoryEngine
+from ghosttrace.system.engine import SystemEngine
 from ghosttrace.terminal.command_parser import parse_command_line
 from ghosttrace.terminal.command_registry import CommandContext, CommandRegistry, CommandResult
 from ghosttrace.terminal.commands import create_default_registry
@@ -91,6 +92,7 @@ class GhostTraceApp(App[int]):
         dev_engine: DeveloperEngine | None = None,
         guardian_engine: GuardianEngine | None = None,
         memory_engine: MemoryEngine | None = None,
+        system_engine: SystemEngine | None = None,
         **kwargs: object,
     ) -> None:
         super().__init__(**kwargs)
@@ -142,12 +144,24 @@ class GhostTraceApp(App[int]):
         else:
             self.memory_engine = MemoryEngine(self.settings)
 
+        if system_engine is not None:
+            self.system_engine = system_engine
+        elif (
+            ai_engine is not None
+            and getattr(ai_engine, "system_engine", None) is not None
+            and isinstance(ai_engine.system_engine, SystemEngine)
+        ):
+            self.system_engine = ai_engine.system_engine
+        else:
+            self.system_engine = SystemEngine(self.settings)
+
         self.ai_engine = ai_engine or AIEngine(
             self.settings,
             ghost_engine=self.ghost_engine,
             developer_engine=self.dev_engine,
             guardian_engine=self.guardian_engine,
             memory_engine=self.memory_engine,
+            system_engine=self.system_engine,
         )
         self.context = CommandContext(
             settings=self.settings,
@@ -157,6 +171,7 @@ class GhostTraceApp(App[int]):
             dev_engine=self.dev_engine,
             guardian_engine=self.guardian_engine,
             memory_engine=self.memory_engine,
+            system_engine=self.system_engine,
         )
         self.is_generating = False
         self.is_executing_command = False
@@ -247,6 +262,12 @@ class GhostTraceApp(App[int]):
                 status_panel.update_memory_status(
                     is_active=self.memory_engine.is_enabled,
                     project_name=proj_name,
+                )
+
+            # Update System telemetry
+            if self.system_engine is not None and isinstance(self.system_engine, SystemEngine):
+                status_panel.update_system_status(
+                    is_active=self.system_engine.is_enabled,
                 )
         except Exception as exc:
             logger.debug("Could not refresh subsystem status: %s", exc)

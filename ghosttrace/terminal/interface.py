@@ -95,7 +95,9 @@ def render_cli_status(settings: Settings | None = None) -> None:
         "[bold #00ff66]ACTIVE[/]" if settings.memory_enabled else "[dim #ff5555]DISABLED[/]",
     )
     subsystem_table.add_row(
-        "08", "System Diagnostics & Telemetry", "[dim #778877]NOT IMPLEMENTED[/]"
+        "08",
+        "System Diagnostics & Telemetry",
+        "[bold #00ff66]ACTIVE[/]" if settings.system_enabled else "[dim #ff5555]DISABLED[/]",
     )
     subsystem_table.add_row("09", "Haunted Events Engine", "[dim #778877]NOT IMPLEMENTED[/]")
     subsystem_table.add_row(

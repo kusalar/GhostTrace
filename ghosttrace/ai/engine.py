@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from ghosttrace.ghost.engine import GhostEngine
     from ghosttrace.guardian.engine import GuardianEngine
     from ghosttrace.memory.engine import MemoryEngine
+    from ghosttrace.system.engine import SystemEngine
 
 logger = logging.getLogger("ghosttrace.ai.engine")
 
@@ -31,6 +32,7 @@ class AIEngine:
         developer_engine: DeveloperEngine | None = None,
         guardian_engine: GuardianEngine | None = None,
         memory_engine: MemoryEngine | None = None,
+        system_engine: SystemEngine | None = None,
     ) -> None:
         self.settings = settings
         if ghost_engine is not None:
@@ -60,6 +62,13 @@ class AIEngine:
             from ghosttrace.memory.engine import MemoryEngine
 
             self.memory_engine = MemoryEngine(settings)
+
+        if system_engine is not None:
+            self.system_engine = system_engine
+        else:
+            from ghosttrace.system.engine import SystemEngine
+
+            self.system_engine = SystemEngine(settings)
         self.model_manager = ModelManager(settings)
         self.inference_config = InferenceConfig(
             context_size=settings.ai_context_size,
@@ -177,6 +186,10 @@ class AIEngine:
             mem_context = injected.formatted_memory_context or None
             proj_context = injected.formatted_project_context or None
 
+        sys_context: str | None = None
+        if self.system_engine is not None and self.system_engine.is_enabled:
+            sys_context = self.system_engine.build_ai_system_context(prompt, ai_engine=self)
+
         if self.ghost_engine is not None:
             composed_prompt = self.ghost_engine.compose_system_prompt(
                 user_query=prompt,
@@ -184,6 +197,7 @@ class AIEngine:
                 guardian_instructions=guardian_instructions,
                 memory_context=mem_context,
                 project_context=proj_context,
+                system_context=sys_context,
             )
             self.conversation.update_system_prompt(composed_prompt)
 
@@ -215,6 +229,10 @@ class AIEngine:
             mem_context = injected.formatted_memory_context or None
             proj_context = injected.formatted_project_context or None
 
+        sys_context: str | None = None
+        if self.system_engine is not None and self.system_engine.is_enabled:
+            sys_context = self.system_engine.build_ai_system_context(prompt, ai_engine=self)
+
         if self.ghost_engine is not None:
             composed_prompt = self.ghost_engine.compose_system_prompt(
                 user_query=prompt,
@@ -222,6 +240,7 @@ class AIEngine:
                 guardian_instructions=guardian_instructions,
                 memory_context=mem_context,
                 project_context=proj_context,
+                system_context=sys_context,
             )
             self.conversation.update_system_prompt(composed_prompt)
 

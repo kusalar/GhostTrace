@@ -67,6 +67,7 @@ def compose_personality_prompt(
     guardian_instructions: str | None = None,
     memory_context: str | None = None,
     project_context: str | None = None,
+    system_context: str | None = None,
 ) -> str:
     """Build a multi-layered prompt combining base rules, persona, traits, and context."""
     sections: list[str] = [
@@ -96,6 +97,9 @@ def compose_personality_prompt(
 
     if project_context:
         sections.extend(["", project_context.strip()])
+
+    if system_context:
+        sections.extend(["", system_context.strip()])
 
     if developer_instructions:
         sections.extend(

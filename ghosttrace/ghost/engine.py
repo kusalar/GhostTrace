@@ -128,6 +128,7 @@ class GhostEngine:
         guardian_instructions: str | None = None,
         memory_context: str | None = None,
         project_context: str | None = None,
+        system_context: str | None = None,
     ) -> str:
         """Compose the appropriate system prompt for the next AI turn.
 
@@ -141,6 +142,8 @@ class GhostEngine:
                 parts.append(memory_context.strip())
             if project_context:
                 parts.append(project_context.strip())
+            if system_context:
+                parts.append(system_context.strip())
             if developer_instructions:
                 parts.append(
                     f"=== DEVELOPER TASK INSTRUCTIONS ===\n{developer_instructions.strip()}"
@@ -166,6 +169,7 @@ class GhostEngine:
             guardian_instructions=guardian_instructions,
             memory_context=memory_context,
             project_context=project_context,
+            system_context=system_context,
         )
 
     def get_status(self) -> PersonalityStatus:

@@ -60,8 +60,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 | **Developer Intelligence** | **Completed** | Code explanation, debugging, review, generation, refactoring, test generation, and safe local static analysis |
 | **Command Guardian** | **Completed** | Command risk analysis, dangerous pattern rules, HMAC-SHA256 approval tokens, controlled subprocess execution |
 | **Persistent Memory & Projects** | **Completed** | SQLite persistence (WAL mode), FTS5 full-text search, user-controlled memory CRUD, read-only project indexing |
-| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (370 tests, 100% passing) |
-| *System Diagnostics* | *Planned* | Step 08: OS telemetry and hardware resource adaptation |
+| **System Awareness & Diagnostics** | **Completed** | Win32 & stdlib resource telemetry, health inspection, diagnostic reporting, and passive AI context injection |
+| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (404 tests, 100% passing) |
 | *Haunted Experience* | *Planned* | Step 09: Interactive events and atmospheric haunting |
 | *Packaging & Hardening* | *Planned* | Step 10: Production release packaging and distribution |
 
@@ -75,8 +75,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 - [x] **Step 04: Ghost Personality & Behaviour Engine**
 - [x] **Step 05: Developer Intelligence & Coding Assistance**
 - [x] **Step 06: Command Guardian & Execution Safety**
-- [x] **Step 07: Persistent Memory & Project Context** *(Current)*
-- [ ] **Step 08: System Awareness & Diagnostics**
+- [x] **Step 07: Persistent Memory & Project Context**
+- [x] **Step 08: System Awareness & Diagnostics** *(Current)*
 - [ ] **Step 09: Haunted Experience & Interactive Events**
 - [ ] **Step 10: Testing, Optimization, Packaging & Release**
 
@@ -192,13 +192,26 @@ ghosttrace guard explain "git reset --hard"
 ghosttrace guard status
 ```
 
-### 7.4 Version Information
+### 7.4 System Awareness & Diagnostics CLI Commands
+Inspect host telemetry, subsystem health, and diagnostics non-interactively:
 ```powershell
-ghosttrace --version
-# Output: GhostTrace v0.6.0
+# Display full system and resource telemetry
+ghosttrace system overview
+
+# Inspect operational health across all 11 internal subsystems
+ghosttrace system health
+
+# Generate a diagnostic report (and export to JSON if enabled)
+ghosttrace system diagnostics
 ```
 
-### 7.5 Help Information
+### 7.5 Version Information
+```powershell
+ghosttrace --version
+# Output: GhostTrace v0.8.0
+```
+
+### 7.6 Help Information
 ```powershell
 ghosttrace --help
 ```
@@ -239,9 +252,12 @@ altering its original implementation...
 | `guard` | `guard [help\|status\|analyze\|explain\|run\|approve\|cancel\|history\|clear\|enable\|disable]` | Command Guardian & execution safety subsystem. |
 | `ai` | `ai [status\|load\|unload\|info\|clear]` | Displays and manages the local AI inference subsystem. |
 | `dev` | `dev [help\|status\|enable\|disable\|language\|analyze\|explain\|debug\|review\|generate\|refactor\|tests]` | Developer intelligence, coding assistance & safe code analysis. |
+| `memory` (or `mem`) | `memory [help\|status\|list\|show\|save\|edit\|delete\|clear\|search\|stats\|export\|import]` | Persistent SQLite conversation and user memory management. |
+| `project` (or `proj`) | `project [help\|status\|list\|add\|use\|scan\|refresh\|info\|files\|search\|clear\|remove]` | Safe read-only project context registration, scanning & indexing. |
+| `system` (or `sys`) | `system [help\|overview\|status\|cpu\|memory\|disk\|processes\|uptime\|health\|diagnostics]` | System awareness, host telemetry, and internal health diagnostics. |
 | `about` (or `info`) | `about` | Displays project vision, triple identity, and target specifications. |
 | `status` | `status` | Displays system status distinguishing implemented from planned features. |
-| `version` (or `v`) | `version` | Displays the GhostTrace version (`v0.6.0`). |
+| `version` (or `v`) | `version` | Displays the GhostTrace version (`v0.8.0`). |
 | `clear` (or `cls`) | `clear` | Clears the scrollable conversation log. |
 | `history` (or `hist`) | `history` | Lists commands entered during the active session. |
 | `ghost` | `ghost` | Displays ghost personality status, profiles, and mood telemetry. |
@@ -438,6 +454,20 @@ Every command execution requires explicit approval:
 - `project clear` — Deactivates the currently selected project context.
 - `project remove <name_or_id>` — Unregisters a project and removes its indexed files.
 
+#### System Awareness & Diagnostics Command Family (`system` / `sys`)
+
+- `system` — Displays comprehensive host system, CPU, RAM, disk, uptime, and overall health overview.
+- `system help` — Complete reference for system awareness and diagnostic subcommands.
+- `system status` — Displays telemetry subsystem state, cache duration, and privacy settings.
+- `system overview` — Rich system summary including CPU utilization, RAM usage, storage volumes, and subsystem health.
+- `system cpu` — Hardware processor model name, logical core count, and CPU utilization percentage.
+- `system memory` (or `ram`) — Physical RAM statistics (total, available, used, load percentage) isolated from page-file swap.
+- `system disk` — Storage capacity and free space for application data and project drives.
+- `system processes` (or `proc`) — Running system process count, GhostTrace process ID, and memory footprint (`WorkingSetSize`).
+- `system uptime` — Windows system uptime and GhostTrace application session duration.
+- `system health` — Operational health status inspection across all 11 internal subsystems.
+- `system diagnostics` — Generates a diagnostic report with active operational warnings (and optional JSON export).
+
 ### Keyboard Shortcuts
 
 - <kbd>Enter</kbd> — Submit the command or AI prompt in the input field.
@@ -453,23 +483,24 @@ Every command execution requires explicit approval:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ GHOSTTRACE v0.7.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
+│ GHOSTTRACE v0.8.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
 ├──────────────────────────────────────────────┬─────────────────────────┤
 │ ConversationLog                              │ StatusPanel             │
 │                                              │                         │
-│ [Something has awakened inside this terminal]│ GhostTrace v0.7.0       │
+│ [Something has awakened inside this terminal]│ GhostTrace v0.8.0       │
 │                                              │                         │
-│ ghost> memory list                           │ Environment: development│
-│ GHOSTTRACE PERSISTENT MEMORIES:              │ Commands Run: 5         │
-│ • [#1] [USER_PREFERENCE] Prefers typing hints│                         │
-│ • [#2] [WORKFLOW] Always run pytest before   │ Subsystems:             │
-│   committing.                                │ • Foundation : OK       │
-│                                              │ • Interface  : ACTIVE   │
-│ ghost> project use GhostTrace                │ • AI Engine  : READY    │
-│ [Active project switched to 'GhostTrace']    │ • Persona    : ACTIVE   │
-│                                              │ • Dev Intel  : ACTIVE   │
-│ ghost> guard run python --version            │ • Guardian   : ACTIVE   │
-│ [Command Approval Modal Displayed]           │ • Memory     : ACTIVE   │
+│ ghost> system overview                       │ Environment: development│
+│ SYSTEM & RESOURCE OVERVIEW                   │ Commands Run: 6         │
+│ • Host Platform: Windows 10 (AMD64)          │                         │
+│ • CPU: Intel Core i3-1115G4 (4 cores) — 12%  │ Subsystems:             │
+│ • RAM: 6.4 GB free of 11.8 GB (45.7% used)   │ • Foundation : OK       │
+│ • Health: [HEALTHY] All 11 subsystems healthy│ • Interface  : ACTIVE   │
+│                                              │ • AI Engine  : READY    │
+│ ghost> project use GhostTrace                │ • Persona    : ACTIVE   │
+│ [Active project switched to 'GhostTrace']    │ • Dev Intel  : ACTIVE   │
+│                                              │ • Guardian   : ACTIVE   │
+│ ghost> guard run python --version            │ • Memory     : ACTIVE   │
+│ [Command Approval Modal Displayed]           │ • System     : HEALTHY  │
 │                                              │ • Project    : GhostTrace│
 ├──────────────────────────────────────────────┴─────────────────────────┤
 │ ghost> [ Enter command or ask a programming question...              ] │

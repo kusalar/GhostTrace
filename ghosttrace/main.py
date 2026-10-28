@@ -252,6 +252,124 @@ def project_list() -> None:
     console.print(table)
 
 
+system_app = typer.Typer(
+    name="system",
+    help="Host system awareness, hardware telemetry, and diagnostics.",
+    no_args_is_help=False,
+)
+app.add_typer(system_app, name="system")
+
+
+@system_app.callback(invoke_without_command=True)
+def system_default(ctx: typer.Context) -> None:
+    """Show system and resource overview."""
+    if ctx.invoked_subcommand is None:
+        from rich.console import Console
+
+        from ghosttrace.system.engine import SystemEngine
+
+        engine = SystemEngine()
+        snap = engine.get_snapshot()
+        health = engine.check_health()
+        console = Console()
+        console.print(
+            f"[bold #00ff66]System:[/] {snap.platform.os_name} {snap.platform.os_release} "
+            f"({snap.platform.architecture}) | Python {snap.platform.python_version} | "
+            f"RAM: {snap.memory.available_gb}/{snap.memory.total_gb} GB free | "
+            f"Health: [bold]{health.overall_status.value}[/]"
+        )
+
+
+@system_app.command(name="overview")
+def system_overview_cmd() -> None:
+    """Display comprehensive system hardware and resource overview."""
+    from rich.console import Console
+
+    from ghosttrace.system.engine import SystemEngine
+
+    engine = SystemEngine()
+    snap = engine.get_snapshot()
+    health = engine.check_health()
+    console = Console()
+    console.print(
+        f"[bold #00ff66]OS Platform :[/] {snap.platform.os_name} {snap.platform.os_release} "
+        f"({snap.platform.architecture})"
+    )
+    console.print(
+        f"[bold #00ff66]Python      :[/] {snap.platform.python_version} "
+        f"({snap.platform.python_executable_arch})"
+    )
+    cpu_usage_str = f"{snap.cpu.cpu_percent}%" if snap.cpu.cpu_percent is not None else "N/A"
+    console.print(
+        f"[bold #00ff66]Processor   :[/] {snap.cpu.model_name} "
+        f"({snap.cpu.logical_cores} cores, usage: {cpu_usage_str})"
+    )
+    console.print(
+        f"[bold #00ff66]Physical RAM:[/] {snap.memory.available_gb} GB avail / "
+        f"{snap.memory.total_gb} GB total ({snap.memory.percent_used}% used)"
+    )
+    console.print(
+        f"[bold #00ff66]Uptime      :[/] OS {snap.uptime.system_uptime_formatted} | "
+        f"App {snap.uptime.app_uptime_formatted}"
+    )
+    console.print(
+        f"[bold #00ff66]Health      :[/] {health.overall_status.value} - {health.summary}"
+    )
+
+
+@system_app.command(name="health")
+def system_health_cmd() -> None:
+    """Display health diagnostics for all GhostTrace subsystems."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from ghosttrace.system.engine import SystemEngine
+
+    engine = SystemEngine()
+    health = engine.check_health()
+    console = Console()
+
+    table = Table(
+        title=f"SUBSYSTEM HEALTH [{health.overall_status.value}]",
+        border_style="dim green",
+    )
+    table.add_column("Subsystem", style="bold #00ff66")
+    table.add_column("Status", style="bold")
+    table.add_column("Details")
+    for name, sub in health.subsystems.items():
+        color = (
+            "#00ff66"
+            if sub.status.value == "HEALTHY"
+            else ("#ffaa00" if sub.status.value in ("DEGRADED", "DISABLED") else "#ff5555")
+        )
+        table.add_row(name, f"[{color}]{sub.status.value}[/]", sub.details)
+    console.print(table)
+
+
+@system_app.command(name="diagnostics")
+def system_diagnostics_cmd(
+    export: str | None = typer.Option(None, "--export", "-e", help="Export report to JSON file"),
+) -> None:
+    """Compile diagnostic report."""
+    from rich.console import Console
+
+    from ghosttrace.system.engine import SystemEngine
+
+    engine = SystemEngine()
+    rep = engine.generate_diagnostics()
+    console = Console()
+
+    if export:
+        dest = engine.export_diagnostics_json(export, report=rep, overwrite=True)
+        console.print(f"[bold #00ff66]Diagnostic report exported to:[/] {dest}")
+        return
+
+    console.print(f"[bold #00ff66]GhostTrace Diagnostic Report v{rep.app_version}[/]")
+    console.print(f"Platform: {rep.snapshot.platform.os_name} {rep.snapshot.platform.os_release}")
+    status_val = rep.snapshot.health.overall_status.value if rep.snapshot.health else "UNKNOWN"
+    console.print(f"Overall Health: {status_val}")
+
+
 def main(args: list[str] | None = None) -> int:
     """Standard CLI entry point returning exit code."""
     try:

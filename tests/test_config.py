@@ -12,7 +12,7 @@ def test_default_configuration() -> None:
     settings = Settings()
 
     assert settings.app_name == "GhostTrace"
-    assert settings.app_version == "0.7.0"
+    assert settings.app_version == "0.8.0"
     assert "haunted" in settings.app_description.lower()
     assert settings.env == "development"
     assert settings.debug is False
@@ -289,3 +289,20 @@ def test_memory_and_project_configuration() -> None:
 
     with pytest.raises(ValidationError, match="Invalid memory_max_context_chars"):
         Settings(memory_max_context_chars=50)
+
+
+def test_system_awareness_configuration() -> None:
+    """Verify Step 08 system awareness settings and validation."""
+    s = Settings()
+    assert s.system_enabled is True
+    assert s.system_cache_seconds == 3.0
+    assert s.system_process_details is False
+    assert s.system_include_hostname is False
+    assert s.system_diagnostics_export is False
+
+    # Validation
+    with pytest.raises(ValidationError, match="Invalid system_cache_seconds"):
+        Settings(system_cache_seconds=-1.0)
+
+    with pytest.raises(ValidationError, match="Invalid system_cache_seconds"):
+        Settings(system_cache_seconds=120.0)

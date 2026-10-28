@@ -1,7 +1,7 @@
 # GhostTrace Architecture Specification
 
-> **Status:** Step 07 / 10 — Persistent Memory & Project Context  
-> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, Developer Intelligence & Safe Code Analysis, Command Guardian & Execution Safety, and Persistent Memory & Project Context are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
+> **Status:** Step 08 / 10 — System Awareness & Diagnostics  
+> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, Developer Intelligence & Safe Code Analysis, Command Guardian & Execution Safety, Persistent Memory & Project Context, and System Awareness & Diagnostics are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
 
 ---
 
@@ -53,7 +53,7 @@
         ▼                       ▼                       ▼
 ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
 │Memory System │        │System Monitor│        │  Core Config │
-│(Implemented) │        │  (Planned)   │        │ (Implemented)│
+│(Implemented) │        │(Implemented) │        │ (Implemented)│
 └──────────────┘        └──────────────┘        └──────────────┘
 ```
 
@@ -156,9 +156,20 @@
   - `MemoryEngine`: Subsystem facade coordinating the database, repository, retrieval, registry, scanner, indexer, and context builder.
   - `schemas`: Typed Pydantic models and Enums (`MemoryCategory`, `MemorySource`, `MemoryItem`, `ConversationRecord`, `MessageRecord`, `ProjectRecord`, `ProjectFileRecord`, `MemorySearchResult`, `ProjectFileSearchResult`, `InjectedContext`, `MemoryStatus`, `ProjectIndexResult`).
 
-### `ghosttrace.system` (Planned — Step 08)
-- **Status:** Package initialized; implementation planned.
-- **Responsibility:** Non-invasive local OS telemetry and hardware capability monitoring (CPU load, RAM pressure).
+### `ghosttrace.system` (Implemented in Step 08)
+- **Status:** Implemented (System Awareness & Diagnostics).
+- **Responsibility:** Non-invasive, read-only host OS telemetry, hardware resource monitoring, operational health checks, diagnostic reports, and passive AI context injection. Strictly zero external telemetry, zero background polling threads, and zero heavy dependencies (standard library and Win32 `ctypes` only).
+- **Components:**
+  - `SystemCollector`: Central metric orchestrator maintaining TTL-cached system snapshots to prevent CPU/IO spikes.
+  - `CpuCollector`: CPU model discovery via `winreg` (`HARDWARE\DESCRIPTION\System\CentralProcessor\0`), logical core counts, and delta sampling via Win32 `GetSystemTimes` without shell invocation.
+  - `MemoryCollector`: Physical RAM telemetry via Win32 `GlobalMemoryStatusEx`, tracking total, available, used bytes and percent load while cleanly isolating page-file swap.
+  - `DiskCollector`: Storage capacity and free space measurement for application data and repository drives via standard library `shutil.disk_usage`.
+  - `ProcessCollector`: Lightweight process awareness via Win32 `EnumProcesses` for system task counts, alongside self-process resident RAM (`WorkingSetSize`) and PID tracking via Win32 `GetProcessMemoryInfo`.
+  - `UptimeCollector`: Windows system uptime via `GetTickCount64()` and application session duration tracking.
+  - `HealthRegistry`: Read-only health inspection across all 11 GhostTrace subsystems (`configuration`, `logging`, `platform`, `ai_engine`, `ghost_persona`, `developer_assistant`, `command_guardian`, `memory_database`, `project_context`, `system_monitor`, `storage`) without executing commands or mutating state.
+  - `DiagnosticsGenerator`: Comprehensive diagnostic report generator with threshold-based operational warnings and safe JSON export.
+  - `SystemEngine`: Subsystem facade coordinating collector, health registry, diagnostics, and relevance-filtered AI system context injection (`SYSTEM_INTENT_PATTERN`).
+  - `schemas`: Typed Pydantic models and Enums (`HealthStatus`, `PlatformInfo`, `CpuInfo`, `MemoryInfo`, `DiskDrive`, `DiskInfo`, `ProcessInfo`, `UptimeInfo`, `SubsystemHealth`, `SystemHealthReport`, `SystemSnapshot`, `DiagnosticReport`).
 
 ---
 
@@ -171,7 +182,7 @@
 5. **Step 05: Developer Intelligence & Coding Assistance** *(Completed)*
 6. **Step 06: Command Guardian & Execution Safety** *(Completed)*
 7. **Step 07: Persistent Memory & Project Context** *(Completed)*
-8. **Step 08: System Awareness & Diagnostics**
+8. **Step 08: System Awareness & Diagnostics** *(Completed)*
 9. **Step 09: Haunted Experience & Interactive Events**
 10. **Step 10: Testing, Optimization, Packaging & Release**
 

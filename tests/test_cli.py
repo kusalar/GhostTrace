@@ -12,11 +12,11 @@ def test_cli_version() -> None:
     """Verify --version and -v return version string and code 0."""
     res1 = runner.invoke(app, ["--version"])
     assert res1.exit_code == 0
-    assert "GhostTrace v0.7.0" in res1.stdout
+    assert "GhostTrace v0.8.0" in res1.stdout
 
     res2 = runner.invoke(app, ["-v"])
     assert res2.exit_code == 0
-    assert "GhostTrace v0.7.0" in res2.stdout
+    assert "GhostTrace v0.8.0" in res2.stdout
 
 
 def test_cli_help() -> None:
@@ -103,3 +103,26 @@ def test_cli_memory_and_project_subcommands() -> None:
     # project list
     res_proj_list = runner.invoke(app, ["project", "list"])
     assert res_proj_list.exit_code == 0
+
+
+def test_cli_system_subcommands() -> None:
+    """Verify 'system' Typer CLI subcommands work as expected."""
+    # system default
+    res_sys = runner.invoke(app, ["system"])
+    assert res_sys.exit_code == 0
+    assert "System:" in res_sys.stdout
+
+    # system overview
+    res_overview = runner.invoke(app, ["system", "overview"])
+    assert res_overview.exit_code == 0
+    assert "OS Platform" in res_overview.stdout
+
+    # system health
+    res_health = runner.invoke(app, ["system", "health"])
+    assert res_health.exit_code == 0
+    assert "SUBSYSTEM HEALTH" in res_health.stdout
+
+    # system diagnostics
+    res_diag = runner.invoke(app, ["system", "diagnostics"])
+    assert res_diag.exit_code == 0
+    assert "Diagnostic Report" in res_diag.stdout

@@ -161,9 +161,10 @@ def test_handle_dev_unknown_subcommand(test_settings: Settings) -> None:
 def test_handle_status_and_about_step05(test_settings: Settings) -> None:
     ctx = create_mock_context(test_settings)
     about_res = handle_about([], ctx)
-    assert "Step 07 / 10 — Persistent Memory & Project Context" in str(about_res.output)
+    assert "Step 08 / 10 — System Awareness & Diagnostics" in str(about_res.output)
 
     status_res = handle_status([], ctx)
     assert "Developer Intel (Step 05)   : [OK] ACTIVE" in str(status_res.output)
     assert "Command Guardian (Step 06)" in str(status_res.output)
     assert "Persistent Memory (Step 07)" in str(status_res.output)
+    assert "System Diagnostics (Step 08)" in str(status_res.output)

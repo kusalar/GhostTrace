@@ -44,6 +44,9 @@ class StatusPanel(Widget):
         self._guard_require_approval = getattr(settings, "guard_require_approval", True)
         self._mem_enabled = getattr(settings, "memory_enabled", True)
         self._mem_project_name: str | None = None
+        self._system_enabled = getattr(settings, "system_enabled", True)
+        self._system_cpu_percent: float | None = None
+        self._system_ram_percent: float | None = None
 
     def compose(self) -> ComposeResult:
         yield Static("SYSTEM TELEMETRY", id="status-title")
@@ -114,6 +117,22 @@ class StatusPanel(Widget):
         except Exception:
             pass
 
+    def update_system_status(
+        self,
+        is_active: bool = True,
+        cpu_percent: float | None = None,
+        ram_percent: float | None = None,
+    ) -> None:
+        """Update system awareness and resource telemetry."""
+        self._system_enabled = is_active
+        self._system_cpu_percent = cpu_percent
+        self._system_ram_percent = ram_percent
+        try:
+            body = self.query_one("#status-body", Static)
+            body.update(self._build_content())
+        except Exception:
+            pass
+
     def _build_content(self) -> str:
         ai_color = "#33ff33" if self._ai_status_text in ("READY", "LOADED") else "#ffaa00"
         if self._ai_status_text in ("OFFLINE", "MISSING", "RUNTIME MISSING"):
@@ -149,6 +168,14 @@ class StatusPanel(Widget):
         proj_color = "#33ff33" if self._mem_project_name else "#888888"
         proj_text = self._mem_project_name if self._mem_project_name else "NONE"
 
+        sys_color = "#33ff33" if self._system_enabled else "#888888"
+        if not self._system_enabled:
+            sys_text = "DISABLED"
+        elif self._system_cpu_percent is not None and self._system_ram_percent is not None:
+            sys_text = f"ACTIVE (CPU {self._system_cpu_percent}%, RAM {self._system_ram_percent}%)"
+        else:
+            sys_text = "ACTIVE"
+
         return (
             f"[bold #33ff33]GhostTrace[/] [dim]v{self.settings.app_version}[/]\n\n"
             f"[dim #558855]Environment:[/] [bold]{self.settings.env}[/]\n"
@@ -164,4 +191,5 @@ class StatusPanel(Widget):
             f" • Guardian  : [bold {guard_color}]{guard_text}[/]\n"
             f" • Memory    : [bold {mem_color}]{mem_text}[/]\n"
             f" • Project   : [bold {proj_color}]{proj_text}[/]\n"
+            f" • System    : [bold {sys_color}]{sys_text}[/]\n"
         )
