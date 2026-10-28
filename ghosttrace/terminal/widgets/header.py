@@ -53,13 +53,33 @@ class GhostTraceHeader(Widget):
                 id="branding",
             )
             yield Static(
-                "[dim #338844]ENTITY:[/] [bold #33ff33]AWAKE[/]",
+                "[dim #338844]GHOST:[/] [bold #33ff33]FORGOTTEN MACHINE[/] "
+                "[dim #55aa77](DORMANT)[/]",
                 id="entity-status",
             )
             yield Static(
                 "[dim #883333]AI ENGINE:[/] [bold #ff5555]NOT CONNECTED[/]",
                 id="ai-status",
             )
+
+    def update_ghost_status(
+        self,
+        profile_name: str,
+        mood_name: str,
+        is_active: bool = True,
+    ) -> None:
+        """Update ghost persona and session mood indicator in header."""
+        try:
+            widget = self.query_one("#entity-status", Static)
+            if not is_active:
+                widget.update("[dim #555555]GHOST:[/] [bold #888888]DISABLED[/]")
+            else:
+                widget.update(
+                    f"[dim #338844]GHOST:[/] [bold #33ff33]{profile_name.upper()}[/] "
+                    f"[dim #55aa77]({mood_name.upper()})[/]"
+                )
+        except Exception:
+            pass
 
     def update_ai_status(self, label: str, color_markup: str = "bold #ff5555") -> None:
         """Update AI engine connection status badge in header."""

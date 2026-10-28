@@ -57,7 +57,7 @@ def handle_about(args: list[str], context: CommandContext) -> CommandResult:
         "  • Architecture : Fully offline-first, local CPU inference",
         "  • Platform     : Windows 10/11 64-bit native",
         "  • Target Spec  : Intel Core i3-1115G4, 12 GB RAM, Intel UHD graphics",
-        "  • Status       : Step 03 / 10 — Local AI Integration",
+        "  • Status       : Step 04 / 10 — Ghost Personality & Behaviour Engine",
     ]
     return CommandResult(success=True, output="\n".join(lines))
 
@@ -70,6 +70,10 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
 
         ai_engine = AIEngine(context.settings)
 
+    ghost_engine = context.ghost_engine
+    if ghost_engine is None:
+        ghost_engine = ai_engine.ghost_engine
+
     ai_status = ai_engine.get_status()
     if not ai_status.runtime_available:
         ai_step_str = "[!] RUNTIME MISSING"
@@ -79,6 +83,12 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         ai_step_str = "[OK] READY (UNLOADED)"
     else:
         ai_step_str = "[!] STANDBY (NO WEIGHTS)"
+
+    ghost_status_str = (
+        f"[OK] ACTIVE ({ghost_engine.active_profile.name})"
+        if ghost_engine.is_enabled
+        else "[!] DISABLED"
+    )
 
     lines = [
         "APPLICATION SUBSYSTEM STATUS",
@@ -92,7 +102,7 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         "  Foundation (Step 01)        : [OK] IMPLEMENTED",
         "  Terminal UI & CLI (Step 02) : [OK] ACTIVE",
         f"  Local AI Engine (Step 03)   : {ai_step_str}",
-        "  Ghost Persona (Step 04)     : [..] NOT IMPLEMENTED",
+        f"  Ghost Persona (Step 04)     : {ghost_status_str}",
         "  Developer Intel (Step 05)   : [..] NOT IMPLEMENTED",
         "  Command Guardian (Step 06)  : [..] NOT IMPLEMENTED",
         "  Persistent Memory (Step 07) : [..] NOT IMPLEMENTED",
@@ -145,12 +155,138 @@ def handle_exit(args: list[str], context: CommandContext) -> CommandResult:
 
 
 def handle_ghost(args: list[str], context: CommandContext) -> CommandResult:
-    """Display ghost personality subsystem status."""
-    msg = (
-        "PERSONALITY ENGINE: NOT IMPLEMENTED\n"
-        "Personality engine and atmospheric behavior are scheduled for Step 04."
+    """Display and manage ghost personality profiles, traits, and mood."""
+    ghost_engine = context.ghost_engine
+    if ghost_engine is None:
+        if context.ai_engine and context.ai_engine.ghost_engine:
+            ghost_engine = context.ai_engine.ghost_engine
+        else:
+            from ghosttrace.ghost.engine import GhostEngine
+
+            ghost_engine = GhostEngine(context.settings)
+
+    if not args:
+        profile = ghost_engine.active_profile
+        greeting = ghost_engine.get_greeting()
+        state_badge = "ACTIVE" if ghost_engine.is_enabled else "DISABLED"
+        mood_val = ghost_engine.current_mood.value.upper()
+        lines = [
+            f"GHOSTTRACE ENTITY: [bold #00ff66]{profile.name}[/]",
+            f"Tagline: {profile.tagline}",
+            f"Mood: [bold #33ff33]{mood_val}[/] | Engine: [bold]{state_badge}[/]",
+            "",
+            f'"{greeting}"',
+            "",
+            "Type 'ghost status' for details, 'ghost profiles' to list identities, "
+            "or 'ghost set <profile>' to switch.",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    subcommand = args[0].lower()
+
+    if subcommand == "status":
+        status = ghost_engine.get_status()
+        state_badge = "ENABLED" if status.is_enabled else "DISABLED"
+        lines = [
+            "GHOST PERSONALITY SUBSYSTEM STATUS",
+            "==================================================",
+            f"  Active Profile    : {status.profile_name} ({status.profile_id.value})",
+            f"  Personality Layer : {state_badge}",
+            f"  Session Mood      : {status.mood.value.upper()}",
+            f"  Mood Rationale    : {ghost_engine.mood_tracker.last_reason}",
+            f"  Mood Tracking     : {'ENABLED' if status.mood_enabled else 'DISABLED'}",
+            f"  Tagline           : {status.tagline}",
+            f"  Description       : {status.description}",
+            "--------------------------------------------------",
+            "TRAIT CONFIGURATION (0.0 - 1.0):",
+        ]
+        lines.extend(ghost_engine.traits.format_summary())
+        lines.append("==================================================")
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "profiles":
+        lines = [
+            "AVAILABLE GHOST PERSONALITY PROFILES",
+            "==================================================",
+        ]
+        active_id = ghost_engine.active_profile.id
+        for p in ghost_engine.list_available_profiles():
+            active_marker = " * [ACTIVE]" if p.id == active_id else ""
+            lines.extend(
+                [
+                    f"• {p.name} [{p.id.value}]{active_marker}",
+                    f"  Tagline : {p.tagline}",
+                    f"  Style   : {p.speaking_style}",
+                    "",
+                ]
+            )
+        lines.append("Switch identity with: ghost set <profile_id>")
+        lines.append("==================================================")
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "set":
+        if len(args) < 2:
+            return CommandResult(
+                success=False,
+                output=(
+                    "Usage: ghost set <profile>\n"
+                    "Available profiles: forgotten-machine, phantom-coder, guardian-spirit"
+                ),
+            )
+        target = args[1].lower()
+        try:
+            new_profile = ghost_engine.set_profile(target)
+            greeting = new_profile.get_greeting()
+            lines = [
+                f"Active personality switched to: [bold #00ff66]{new_profile.name}[/]",
+                f'"{greeting}"',
+                "Next AI responses will embody this identity.",
+            ]
+            return CommandResult(success=True, output="\n".join(lines))
+        except ValueError as exc:
+            return CommandResult(success=False, output=str(exc))
+
+    if subcommand == "traits":
+        lines = [
+            f"PERSONALITY TRAITS: {ghost_engine.active_profile.name}",
+            "==================================================",
+        ]
+        lines.extend(ghost_engine.traits.format_summary())
+        lines.append("==================================================")
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "reset":
+        reset_prof = ghost_engine.reset_profile()
+        return CommandResult(
+            success=True,
+            output=(
+                f"Personality reset to default profile: {reset_prof.name}\n"
+                f"Session mood reset to: {ghost_engine.current_mood.value.upper()}"
+            ),
+        )
+
+    if subcommand == "enable":
+        ghost_engine.enable()
+        return CommandResult(success=True, output="Ghost personality subsystem enabled.")
+
+    if subcommand == "disable":
+        ghost_engine.disable()
+        return CommandResult(
+            success=True,
+            output=(
+                "Ghost personality subsystem disabled. "
+                "GhostTrace will operate as a neutral developer assistant."
+            ),
+        )
+
+    return CommandResult(
+        success=False,
+        output=(
+            f"Unknown ghost subcommand '{subcommand}'. "
+            "Available: ghost, ghost status, ghost profiles, ghost set <profile>, "
+            "ghost traits, ghost reset"
+        ),
     )
-    return CommandResult(success=True, output=msg)
 
 
 def handle_ai(args: list[str], context: CommandContext) -> CommandResult:
@@ -315,8 +451,8 @@ def create_default_registry() -> CommandRegistry:
     registry.register(
         Command(
             name="ghost",
-            description="Display ghost persona subsystem status.",
-            usage="ghost",
+            description="Display and configure ghost persona identities, mood, and traits.",
+            usage="ghost [status|profiles|set <profile>|traits|reset]",
             handler=handle_ghost,
         )
     )

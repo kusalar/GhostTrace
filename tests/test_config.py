@@ -12,7 +12,7 @@ def test_default_configuration() -> None:
     settings = Settings()
 
     assert settings.app_name == "GhostTrace"
-    assert settings.app_version == "0.3.0"
+    assert settings.app_version == "0.4.0"
     assert "haunted" in settings.app_description.lower()
     assert settings.env == "development"
     assert settings.debug is False
@@ -40,6 +40,11 @@ def test_default_configuration() -> None:
     assert settings.ai_gpu_layers == 0
     assert settings.ai_batch_size == 128
     assert settings.ai_history_limit == 10
+
+    # Verify ghost personality default parameters
+    assert settings.ghost_enabled is True
+    assert settings.ghost_profile == "forgotten-machine"
+    assert settings.ghost_mood_enabled is True
 
 
 def test_environment_variable_overrides(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -178,3 +183,12 @@ def test_ai_settings_validation_errors() -> None:
 
     with pytest.raises(ValidationError):
         Settings(ai_history_limit=0)  # must be >= 1
+
+
+def test_ghost_settings_validation() -> None:
+    """Verify validation on ghost personality settings."""
+    settings = Settings(ghost_profile="PHANTOM-CODER")
+    assert settings.ghost_profile == "phantom-coder"
+
+    with pytest.raises(ValidationError, match="Invalid ghost_profile"):
+        Settings(ghost_profile="invalid-ghost-profile")

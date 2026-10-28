@@ -33,6 +33,18 @@ class ConversationManager:
         """Return the active system prompt."""
         return self._system_prompt
 
+    def update_system_prompt(self, new_prompt: str) -> None:
+        """Update system prompt in-place while preserving existing conversation history."""
+        clean = new_prompt.strip()
+        if not clean:
+            return
+        self._system_prompt = clean
+        if self._messages and self._messages[0].role == ChatRole.SYSTEM:
+            self._messages[0] = ChatMessage(role=ChatRole.SYSTEM, content=clean)
+        else:
+            self._messages.insert(0, ChatMessage(role=ChatRole.SYSTEM, content=clean))
+        logger.debug("Active system prompt updated in-place.")
+
     def reset(self) -> None:
         """Clear all conversation history and re-insert the initial system prompt."""
         self._messages = [ChatMessage(role=ChatRole.SYSTEM, content=self._system_prompt)]

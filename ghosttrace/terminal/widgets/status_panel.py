@@ -34,6 +34,9 @@ class StatusPanel(Widget):
         self.settings = settings
         self._command_count = 0
         self._ai_status_text = "STANDBY"
+        self._ghost_profile_text = "Forgotten Machine"
+        self._ghost_mood_text = "DORMANT"
+        self._ghost_enabled = True
 
     def compose(self) -> ComposeResult:
         yield Static("SYSTEM TELEMETRY", id="status-title")
@@ -57,10 +60,28 @@ class StatusPanel(Widget):
         except Exception:
             pass
 
+    def update_ghost_status(self, profile: str, mood: str, is_active: bool = True) -> None:
+        """Update ghost persona and mood telemetry string."""
+        self._ghost_profile_text = profile
+        self._ghost_mood_text = mood
+        self._ghost_enabled = is_active
+        try:
+            body = self.query_one("#status-body", Static)
+            body.update(self._build_content())
+        except Exception:
+            pass
+
     def _build_content(self) -> str:
         ai_color = "#33ff33" if self._ai_status_text in ("READY", "LOADED") else "#ffaa00"
         if self._ai_status_text in ("OFFLINE", "MISSING", "RUNTIME MISSING"):
             ai_color = "#ff5555"
+
+        ghost_color = "#33ff33" if self._ghost_enabled else "#888888"
+        ghost_text = (
+            f"{self._ghost_profile_text} ({self._ghost_mood_text.upper()})"
+            if self._ghost_enabled
+            else "DISABLED"
+        )
 
         return (
             f"[bold #33ff33]GhostTrace[/] [dim]v{self.settings.app_version}[/]\n\n"
@@ -72,7 +93,7 @@ class StatusPanel(Widget):
             " • Foundation: [bold #33ff33]OK[/]\n"
             " • Interface : [bold #33ff33]ACTIVE[/]\n"
             f" • AI Engine : [bold {ai_color}]{self._ai_status_text}[/]\n"
-            " • Persona   : [dim #667766]STEP 04[/]\n"
+            f" • Persona   : [bold {ghost_color}]{ghost_text}[/]\n"
             " • Guardian  : [dim #667766]STEP 06[/]\n"
             " • Memory    : [dim #667766]STEP 07[/]\n"
         )

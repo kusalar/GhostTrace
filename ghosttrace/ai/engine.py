@@ -10,6 +10,7 @@ from ghosttrace.ai.inference import InferenceEngine
 from ghosttrace.ai.model_manager import ModelManager, check_runtime_availability
 from ghosttrace.ai.schemas import AIStatus, InferenceConfig, InferenceResult
 from ghosttrace.config.settings import Settings
+from ghosttrace.ghost.engine import GhostEngine
 
 logger = logging.getLogger("ghosttrace.ai.engine")
 
@@ -17,8 +18,9 @@ logger = logging.getLogger("ghosttrace.ai.engine")
 class AIEngine:
     """Central AI engine facade integrating model lifecycle, context memory, and inference."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, ghost_engine: GhostEngine | None = None) -> None:
         self.settings = settings
+        self.ghost_engine = ghost_engine or GhostEngine(settings)
         self.model_manager = ModelManager(settings)
         self.inference_config = InferenceConfig(
             context_size=settings.ai_context_size,
@@ -30,7 +32,11 @@ class AIEngine:
             batch_size=settings.ai_batch_size,
         )
         self.inference_engine = InferenceEngine(self.inference_config)
-        self.conversation = ConversationManager(history_limit=settings.ai_history_limit)
+        initial_prompt = self.ghost_engine.compose_system_prompt() if self.ghost_engine else None
+        self.conversation = ConversationManager(
+            system_prompt=initial_prompt,
+            history_limit=settings.ai_history_limit,
+        )
 
     def get_status(self) -> AIStatus:
         """Compile and return current operational status of the AI subsystem."""
@@ -71,6 +77,9 @@ class AIEngine:
     def ask(self, prompt: str) -> InferenceResult:
         """Synchronously ask a question and receive an assistant response."""
         model = self.model_manager.load_model()
+        if self.ghost_engine is not None:
+            composed_prompt = self.ghost_engine.compose_system_prompt(user_query=prompt)
+            self.conversation.update_system_prompt(composed_prompt)
         self.conversation.add_user_message(prompt)
         messages = self.conversation.get_messages_for_llm()
 
@@ -81,6 +90,9 @@ class AIEngine:
     def ask_stream(self, prompt: str) -> Iterator[str]:
         """Stream assistant response tokens and record completed message in conversation."""
         model = self.model_manager.load_model()
+        if self.ghost_engine is not None:
+            composed_prompt = self.ghost_engine.compose_system_prompt(user_query=prompt)
+            self.conversation.update_system_prompt(composed_prompt)
         self.conversation.add_user_message(prompt)
         messages = self.conversation.get_messages_for_llm()
 

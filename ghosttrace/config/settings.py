@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Application Metadata
     app_name: str = "GhostTrace"
-    app_version: str = "0.3.0"
+    app_version: str = "0.4.0"
     app_description: str = "Offline-first AI-powered haunted terminal companion."
 
     # Environment & Execution Mode
@@ -105,6 +105,22 @@ class Settings(BaseSettings):
         description="Maximum number of conversation exchanges retained in memory.",
     )
 
+    # Ghost Personality & Behaviour Engine (Step 04)
+    ghost_enabled: bool = Field(
+        default=True,
+        description="Enable or disable digital ghost personality engine.",
+    )
+    ghost_profile: str = Field(
+        default="forgotten-machine",
+        description=(
+            "Active ghost personality profile (forgotten-machine, phantom-coder, guardian-spirit)."
+        ),
+    )
+    ghost_mood_enabled: bool = Field(
+        default=True,
+        description="Enable session mood tracking and contextual transitions.",
+    )
+
     model_config = SettingsConfigDict(
         env_prefix="GHOSTTRACE_",
         env_file=".env",
@@ -133,6 +149,18 @@ class Settings(BaseSettings):
             if normalized in allowed:
                 return normalized
             msg = f"Invalid log_level '{value}'. Must be one of: {', '.join(allowed)}"
+            raise ValueError(msg)
+        return str(value)
+
+    @field_validator("ghost_profile", mode="before")
+    @classmethod
+    def normalize_and_validate_ghost_profile(cls, value: object) -> str:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            allowed = ("forgotten-machine", "phantom-coder", "guardian-spirit")
+            if normalized in allowed:
+                return normalized
+            msg = f"Invalid ghost_profile '{value}'. Must be one of: {', '.join(allowed)}"
             raise ValueError(msg)
         return str(value)
 

@@ -14,6 +14,7 @@ from textual.widgets import Footer, Input, Static
 
 from ghosttrace.ai.engine import AIEngine
 from ghosttrace.config.settings import Settings, get_settings
+from ghosttrace.ghost.engine import GhostEngine
 from ghosttrace.terminal.command_parser import parse_command_line
 from ghosttrace.terminal.command_registry import CommandContext, CommandRegistry
 from ghosttrace.terminal.commands import create_default_registry
@@ -80,17 +81,30 @@ class GhostTraceApp(App[int]):
         settings: Settings | None = None,
         registry: CommandRegistry | None = None,
         ai_engine: AIEngine | None = None,
+        ghost_engine: GhostEngine | None = None,
         **kwargs: object,
     ) -> None:
         super().__init__(**kwargs)
         self.settings = settings or get_settings()
         self.history = SessionHistory()
         self.registry = registry or create_default_registry()
-        self.ai_engine = ai_engine or AIEngine(self.settings)
+        if ghost_engine is not None:
+            self.ghost_engine = ghost_engine
+        elif (
+            ai_engine is not None
+            and getattr(ai_engine, "ghost_engine", None) is not None
+            and isinstance(ai_engine.ghost_engine, GhostEngine)
+        ):
+            self.ghost_engine = ai_engine.ghost_engine
+        else:
+            self.ghost_engine = GhostEngine(self.settings)
+
+        self.ai_engine = ai_engine or AIEngine(self.settings, ghost_engine=self.ghost_engine)
         self.context = CommandContext(
             settings=self.settings,
             history=self.history,
             ai_engine=self.ai_engine,
+            ghost_engine=self.ghost_engine,
         )
         self.is_generating = False
 
@@ -121,12 +135,13 @@ class GhostTraceApp(App[int]):
         logger.info("GhostTrace terminal UI unmounted.")
 
     def _refresh_subsystem_status(self) -> None:
-        """Synchronize header badge and status panel with actual AI subsystem state."""
+        """Synchronize header badge and status panel with actual AI and Ghost subsystem state."""
         try:
             status = self.ai_engine.get_status()
             header = self.query_one("#app-header", GhostTraceHeader)
             status_panel = self.query_one("#status-panel", StatusPanel)
 
+            # Update AI engine status badges
             if not status.runtime_available:
                 header.update_ai_status("NO RUNTIME", "bold #ff5555")
                 status_panel.update_ai_status("RUNTIME MISSING")
@@ -139,6 +154,19 @@ class GhostTraceApp(App[int]):
             else:
                 header.update_ai_status("STANDBY", "bold #ffaa00")
                 status_panel.update_ai_status("STANDBY")
+
+            # Update Ghost persona and mood telemetry
+            if self.ghost_engine is not None:
+                header.update_ghost_status(
+                    profile_name=self.ghost_engine.active_profile.name,
+                    mood_name=self.ghost_engine.current_mood.value,
+                    is_active=self.ghost_engine.is_enabled,
+                )
+                status_panel.update_ghost_status(
+                    profile=self.ghost_engine.active_profile.name,
+                    mood=self.ghost_engine.current_mood.value,
+                    is_active=self.ghost_engine.is_enabled,
+                )
         except Exception as exc:
             logger.debug("Could not refresh subsystem status: %s", exc)
 

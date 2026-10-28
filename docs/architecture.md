@@ -1,7 +1,7 @@
 # GhostTrace Architecture Specification
 
-> **Status:** Step 03 / 10 — Local AI Integration  
-> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, and Local AI Subsystem (Qwen2.5 GGUF + llama.cpp) are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
+> **Status:** Step 04 / 10 — Ghost Personality & Behaviour Engine  
+> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), and Ghost Personality & Behaviour Engine are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
 
 ---
 
@@ -21,7 +21,7 @@
 ┌───────────────────────────────▼─────────────────────────────────┐
 │             Interactive Terminal Interface (Textual)            │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │ GhostTraceHeader (Branding, Live AI & Subsystem States)   │  │
+│  │ GhostTraceHeader (Branding, Live AI & Ghost States)       │  │
 │  ├─────────────────────────────┬─────────────────────────────┤  │
 │  │ ConversationLog (Streaming) │ StatusPanel (Telemetry)     │  │
 │  ├─────────────────────────────┴─────────────────────────────┤  │
@@ -40,8 +40,8 @@
         │                       │                       │
         ▼                       ▼                       ▼
 ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
-│  AI Engine   │        │ Ghost Persona│        │Safety Guard  │
-│(Implemented) │        │  (Planned)   │        │  (Planned)   │
+│  AI Engine   │◄───────┤ Ghost Persona│        │Safety Guard  │
+│(Implemented) │        │(Implemented) │        │  (Planned)   │
 └───────┬──────┘        └───────┬──────┘        └───────┬──────┘
         │                       │                       │
         └───────────────────────┼───────────────────────┘
@@ -73,9 +73,9 @@
 - **Responsibility:** User interaction, presentation, command execution routing, and session history.
 - **Components:**
   - `GhostTraceApp`: Textual application orchestrating the visual layout, background workers, and keyboard event lifecycle.
-  - `GhostTraceHeader`: Displays branding, entity status (`AWAKE`), and live AI status (`READY`, `LOADED`, `THINKING`).
+  - `GhostTraceHeader`: Displays branding, ghost entity badge, and live AI engine status.
   - `ConversationLog`: Scrollable log managing user command exchanges, incremental AI streaming, and formatted outputs.
-  - `StatusPanel`: Live telemetry panel reflecting environment, version, and active command counts.
+  - `StatusPanel`: Live telemetry panel reflecting environment, version, command counts, and persona mood.
   - `CommandInput`: Specialized input widget supporting Up/Down arrow session history cycling.
   - `CommandRegistry`: Decoupled registry routing input to registered command handlers with alias resolution.
   - `SessionHistory`: Lightweight in-memory FIFO history excluding blank inputs and self-referential commands.
@@ -88,14 +88,25 @@
   - `AIEngine`: Unified facade coordinating model lifecycle, prompt assembly, and inference execution.
   - `ModelManager`: Hardware-aware model discovery, validation, thread-safe lazy loading, and RAM release.
   - `InferenceEngine`: Low-level wrapper executing chat completions via `llama-cpp-python` with token streaming and concurrency locks.
-  - `ConversationManager`: In-memory conversation context enforcing bounded limits and pruning older exchanges while preserving the system prompt.
-  - `prompts`: Dedicated developer assistant system prompt ensuring factual, humble, and developer-centric guidance.
+  - `ConversationManager`: In-memory conversation context enforcing bounded limits and in-place system prompt updates.
+  - `prompts`: Base developer assistant system prompt ensuring factual, humble, and developer-centric guidance.
   - `schemas`: Typed Pydantic models for status, model metadata, execution config, and token statistics.
-  - `exceptions`: Domain-specific AI exception hierarchy (`RuntimeUnavailableError`, `ModelNotFoundError`, `ModelBusyError`, etc.).
+  - `exceptions`: Domain-specific AI exception hierarchy.
 
-### `ghosttrace.ghost` (Planned — Step 04)
-- **Status:** Package initialized; implementation planned.
-- **Responsibility:** Persona state machine, contextual dialogue, dynamic haunting intensity, and atmospheric terminal effects.
+### `ghosttrace.ghost` (Implemented in Step 04)
+- **Status:** Implemented (Ghost Personality & Behaviour Engine).
+- **Responsibility:** Persona state machine, contextual dialogue, configurable profiles, trait models, session mood transitions, and prompt composition.
+- **Components:**
+  - `GhostEngine`: Central facade managing active profile selection, mood transitions, prompt composition, and runtime switching.
+  - `PersonalityProfile`: Declarative profile specifications for three distinct personas:
+    1. **Forgotten Machine:** Dormant ancient intelligence, observant, calm, nostalgic, reflective.
+    2. **Phantom Coder:** Playful digital hacker spirit, curious, witty, energetic, debug-focused.
+    3. **Guardian Spirit:** Vigilant protector, composed, reassuring, defensive programming advocate.
+  - `PersonalityTraits`: Normalized trait model (0.0 to 1.0) governing curiosity, composure, humor, mystery, technical helpfulness, emotional expressiveness, and safety awareness.
+  - `SessionMoodTracker`: Lightweight, explainable session mood state machine with deterministic transitions (`DORMANT`, `CURIOUS`, `FOCUSED`, `AMUSED`, `CONCERNED`, `SATISFIED`).
+  - `behaviour`: Context-aware classification engine detecting greetings, technical questions, debugging, errors, and dangerous commands.
+  - `response_modifier`: Multi-layered system prompt composition pipeline injecting base identity, ghost persona, traits, and context guidance while strictly preserving truthfulness and developer safety.
+  - `schemas`: Typed schemas and enums (`GhostProfileId`, `GhostMood`, `InteractionContext`, `PersonalityStatus`).
 
 ### `ghosttrace.safety` (Planned — Step 06)
 - **Status:** Package initialized; implementation planned.
@@ -116,7 +127,7 @@
 1. **Step 01: Foundation, Environment & Configuration** *(Completed)*
 2. **Step 02: Interactive Terminal Interface & CLI** *(Completed)*
 3. **Step 03: Local AI Integration** *(Completed)*
-4. **Step 04: Ghost Personality & Behaviour Engine**
+4. **Step 04: Ghost Personality & Behaviour Engine** *(Completed)*
 5. **Step 05: Developer Intelligence & Coding Assistance**
 6. **Step 06: Command Guardian & Execution Safety**
 7. **Step 07: Persistent Memory & Project Context**

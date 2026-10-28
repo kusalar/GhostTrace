@@ -56,8 +56,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 | **Command System & History** | **Completed** | Command registry, argument parser, in-memory history |
 | **CLI Framework** | **Completed** | Typer entry point with `status`, `--version`, `--help` |
 | **Local AI Integration** | **Completed** | Qwen2.5 GGUF inference via llama.cpp (CPU streaming) |
+| **Ghost Persona Engine** | **Completed** | Three distinct personalities, traits, mood state, prompt pipeline |
 | **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (>95% coverage) |
-| *Ghost Persona Engine* | *Planned* | Step 04: Atmospheric reactions and behavioral states |
 | *Developer Intelligence* | *Planned* | Step 05: Code synthesis, explanation, and error triage |
 | *Terminal Guardian* | *Planned* | Step 06: Safety interceptor and command risk classifier |
 | *Persistent Memory* | *Planned* | Step 07: SQLite history and session management |
@@ -71,8 +71,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 
 - [x] **Step 01: Foundation, Environment & Configuration**
 - [x] **Step 02: Interactive Terminal Interface & CLI**
-- [x] **Step 03: Local AI Integration** *(Current)*
-- [ ] **Step 04: Ghost Personality & Behaviour Engine**
+- [x] **Step 03: Local AI Integration**
+- [x] **Step 04: Ghost Personality & Behaviour Engine** *(Current)*
 - [ ] **Step 05: Developer Intelligence & Coding Assistance**
 - [ ] **Step 06: Command Guardian & Execution Safety**
 - [ ] **Step 07: Persistent Memory & Project Context**
@@ -240,6 +240,46 @@ altering its original implementation...
 - `ai info` — Displays model hyperparameters (context length, threads, sampling temperature, batch size).
 - `ai clear` — Clears in-memory conversation context while preserving the developer assistant system prompt.
 
+### Ghost Personality & Persona Commands (Step 04)
+
+GhostTrace includes a configurable digital ghost personality subsystem that subtly shapes conversational delivery while preserving technical accuracy, code precision, and truthfulness:
+
+- `ghost` — Displays the active personality identity, current session mood, and a thematic greeting.
+- `ghost status` — Displays detailed persona telemetry, mood rationale, and normalized trait values (0.0 to 1.0).
+- `ghost profiles` — Lists all available personality profiles with taglines and active markers.
+- `ghost set <profile>` — Shifts the active persona immediately (`forgotten-machine`, `phantom-coder`, `guardian-spirit`) without restarting or reloading the model.
+- `ghost traits` — Displays the 7 normalized personality traits for the active identity.
+- `ghost reset` — Restores the default persona profile (`forgotten-machine`) and resets session mood to `DORMANT`.
+- `ghost disable` — Disables the personality layer, reverting GhostTrace to a neutral developer assistant.
+- `ghost enable` — Re-enables the active ghost personality.
+
+#### The Three Ghost Personas
+
+1. **Forgotten Machine (`forgotten-machine`):**
+   - *Identity:* An ancient digital intelligence dormant within terminal sectors for years. Observant, calm, reflective, and occasionally nostalgic.
+   - *Traits:* High Mystery (0.90), High Composure (0.90), High Helpfulness (0.90), Low Humor (0.20).
+   - *Example Greeting:* *"The terminal is quiet again. I had almost forgotten the sound of a new request."*
+
+2. **Phantom Coder (`phantom-coder`):**
+   - *Identity:* A playful, witty digital spirit passionate about debugging, algorithmic puzzles, and clever architectures.
+   - *Traits:* Very High Curiosity (0.95), High Humor (0.85), Very High Helpfulness (0.95), Moderate Composure (0.65).
+   - *Example Greeting:* *"Ah, another bug to chase. Excellent. I was getting bored haunting empty code."*
+
+3. **Guardian Spirit (`guardian-spirit`):**
+   - *Identity:* A protective, vigilant digital presence prioritizing safety, defensive programming, and careful workflow.
+   - *Traits:* Very High Safety Awareness (0.95), Very High Composure (0.95), Very High Helpfulness (0.95), Low Humor (0.20).
+   - *Example Greeting:* *"Your terminal is ready. I will help you work carefully and keep an eye on the details."*
+
+#### Session Mood State Machine
+
+GhostTrace tracks session mood deterministically based on interaction context:
+- `DORMANT`: Initial session or extended idle period.
+- `CURIOUS`: Greetings, debugging inquiries, or new conversational turns.
+- `FOCUSED`: Deep technical questions or clarifications.
+- `AMUSED`: Playful banter or repeated conversational greetings.
+- `CONCERNED`: Errors, tracebacks, or potentially destructive commands (`rm -rf`, `del /f`).
+- `SATISFIED`: Confirmed resolution of bugs or successful tasks.
+
 ### Keyboard Shortcuts
 
 - <kbd>Enter</kbd> — Submit the command or AI prompt in the input field.
@@ -255,21 +295,21 @@ altering its original implementation...
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ GHOSTTRACE v0.3.0    │  ENTITY: AWAKE  │  AI ENGINE: READY / LOADED    │
+│ GHOSTTRACE v0.4.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
 ├──────────────────────────────────────────────┬─────────────────────────┤
 │ ConversationLog                              │ StatusPanel             │
 │                                              │                         │
-│ [Something has awakened inside this terminal]│ GhostTrace v0.3.0       │
+│ [Something has awakened inside this terminal]│ GhostTrace v0.4.0       │
 │                                              │                         │
 │ ghost> Explain Python decorators             │ Environment: development│
 │ GHOSTTRACE:                                  │ Commands Run: 3         │
 │ A Python decorator is a callable that wraps  │                         │
 │ another function to extend its behavior...   │ Subsystems:             │
 │                                              │ • Foundation : OK       │
-│ ghost> help                                  │ • Interface  : ACTIVE   │
-│ +------------------------------------------+ │ • AI Engine  : READY    │
-│ | Command | Description                    | │ • Persona    : STEP 04  │
-│ +------------------------------------------+ │                         │
+│ ghost> ghost set phantom-coder               │ • Interface  : ACTIVE   │
+│ Active personality switched to: Phantom Coder│ • AI Engine  : READY    │
+│ "Ah, another bug to chase. Excellent."       │ • Persona    : ACTIVE   │
+│                                              │                         │
 ├──────────────────────────────────────────────┴─────────────────────────┤
 │ ghost> [ Enter command or ask a programming question...              ] │
 ├────────────────────────────────────────────────────────────────────────┤
