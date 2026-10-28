@@ -1,7 +1,7 @@
 # GhostTrace Architecture Specification
 
-> **Status:** Step 06 / 10 — Command Guardian & Execution Safety  
-> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, Developer Intelligence & Safe Code Analysis, and Command Guardian & Execution Safety are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
+> **Status:** Step 07 / 10 — Persistent Memory & Project Context  
+> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, Developer Intelligence & Safe Code Analysis, Command Guardian & Execution Safety, and Persistent Memory & Project Context are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
 
 ---
 
@@ -53,7 +53,7 @@
         ▼                       ▼                       ▼
 ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
 │Memory System │        │System Monitor│        │  Core Config │
-│  (Planned)   │        │  (Planned)   │        │ (Implemented)│
+│(Implemented) │        │  (Planned)   │        │ (Implemented)│
 └──────────────┘        └──────────────┘        └──────────────┘
 ```
 
@@ -139,9 +139,22 @@
   - `CommandApprovalModal`: Textual modal screen providing explicit visual confirmation previews before running permitted commands.
   - `schemas`: Typed Pydantic models (`RiskLevel`: `SAFE`, `LOW`, `MEDIUM`, `HIGH`, `BLOCKED`; `ApprovalStatus`, `ExecutionStatus`, `CommandAnalysis`, `ApprovalRequest`, `ExecutionResult`, `HistoryEntry`, `GuardianStatus`).
 
-### `ghosttrace.memory` (Planned — Step 07)
-- **Status:** Package initialized; implementation planned.
-- **Responsibility:** Persistent local state, session history, and persona memory backed by SQLite in WAL mode.
+### `ghosttrace.memory` (Implemented in Step 07)
+- **Status:** Implemented (Persistent Memory & Project Context).
+- **Responsibility:** Persistent local conversation history, user-controlled memory creation, and read-only project indexing backed by Python's standard-library `sqlite3`. Strictly zero vector DBs, embeddings models, or cloud sync.
+- **Components:**
+  - `DatabaseManager`: Standard library `sqlite3` connection manager with WAL journal mode, strict foreign key enforcement (`PRAGMA foreign_keys = ON`), 5000ms busy timeout, automatic FTS5 detection, and transaction safety.
+  - `Migrations`: Versioned database migration runner (`schema_metadata`) managing schema lifecycle, relational tables (`conversations`, `messages`, `memories`, `projects`, `project_files`, `app_state`), and conditional FTS5 virtual tables (`memories_fts`, `project_files_fts`) with automatic synchronization triggers.
+  - `Redaction`: Sensitive secret detection and sanitization engine covering API tokens, bearer keys, private key blocks, connection strings, and credential patterns before persistent storage.
+  - `MemoryRepository`: CRUD operations for structured memories across 7 categories (`USER_PREFERENCE`, `USER_PROFILE`, `PROJECT_CONTEXT`, `TECHNICAL_DECISION`, `WORKFLOW`, `LEARNING`, `GENERAL`) with configurable bounding, recency sorting, and export/import capabilities.
+  - `ConversationPersistenceManager`: Bounded conversation session management persisting user and assistant messages, maintaining session context and ordering.
+  - `MemoryRetriever`: Relevance-based search using FTS5 full-text queries with graceful fallback to parameterized SQL `LIKE`, weighted by importance and recency with deduplication.
+  - `ProjectRegistry`: Safe project registration validating paths against dangerous root directories (`C:\`, `C:\Windows`, Program Files, User home root, GhostTrace app data) and maintaining active project pointers.
+  - `ProjectScanner`: Read-only, bounded directory crawler enforcing directory exclusions (`.git`, `.venv`, `node_modules`, `__pycache__`, build artifacts, binaries, model weights), depth limits, file count caps, per-file byte thresholds (default 256 KB), total byte quotas (default 5 MB), symlink escape rejection, and UTF-8 fallback decoding.
+  - `ProjectIndexer`: Incremental file indexing via SHA-256 content hashing, language detection, stale file removal, and full-text code search with snippet extraction.
+  - `ContextBuilder`: Prompt injection-defended context formatter framing retrieved memories and project files as untrusted, passive reference material with strict boundary delimiters.
+  - `MemoryEngine`: Subsystem facade coordinating the database, repository, retrieval, registry, scanner, indexer, and context builder.
+  - `schemas`: Typed Pydantic models and Enums (`MemoryCategory`, `MemorySource`, `MemoryItem`, `ConversationRecord`, `MessageRecord`, `ProjectRecord`, `ProjectFileRecord`, `MemorySearchResult`, `ProjectFileSearchResult`, `InjectedContext`, `MemoryStatus`, `ProjectIndexResult`).
 
 ### `ghosttrace.system` (Planned — Step 08)
 - **Status:** Package initialized; implementation planned.
@@ -157,7 +170,7 @@
 4. **Step 04: Ghost Personality & Behaviour Engine** *(Completed)*
 5. **Step 05: Developer Intelligence & Coding Assistance** *(Completed)*
 6. **Step 06: Command Guardian & Execution Safety** *(Completed)*
-7. **Step 07: Persistent Memory & Project Context**
+7. **Step 07: Persistent Memory & Project Context** *(Completed)*
 8. **Step 08: System Awareness & Diagnostics**
 9. **Step 09: Haunted Experience & Interactive Events**
 10. **Step 10: Testing, Optimization, Packaging & Release**

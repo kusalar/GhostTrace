@@ -59,8 +59,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 | **Ghost Persona Engine** | **Completed** | Three distinct personalities, traits, mood state, prompt pipeline |
 | **Developer Intelligence** | **Completed** | Code explanation, debugging, review, generation, refactoring, test generation, and safe local static analysis |
 | **Command Guardian** | **Completed** | Command risk analysis, dangerous pattern rules, HMAC-SHA256 approval tokens, controlled subprocess execution |
-| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (>94% coverage) |
-| *Persistent Memory* | *Planned* | Step 07: SQLite history and session management |
+| **Persistent Memory & Projects** | **Completed** | SQLite persistence (WAL mode), FTS5 full-text search, user-controlled memory CRUD, read-only project indexing |
+| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (370 tests, 100% passing) |
 | *System Diagnostics* | *Planned* | Step 08: OS telemetry and hardware resource adaptation |
 | *Haunted Experience* | *Planned* | Step 09: Interactive events and atmospheric haunting |
 | *Packaging & Hardening* | *Planned* | Step 10: Production release packaging and distribution |
@@ -74,8 +74,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 - [x] **Step 03: Local AI Integration**
 - [x] **Step 04: Ghost Personality & Behaviour Engine**
 - [x] **Step 05: Developer Intelligence & Coding Assistance**
-- [x] **Step 06: Command Guardian & Execution Safety** *(Current)*
-- [ ] **Step 07: Persistent Memory & Project Context**
+- [x] **Step 06: Command Guardian & Execution Safety**
+- [x] **Step 07: Persistent Memory & Project Context** *(Current)*
 - [ ] **Step 08: System Awareness & Diagnostics**
 - [ ] **Step 09: Haunted Experience & Interactive Events**
 - [ ] **Step 10: Testing, Optimization, Packaging & Release**
@@ -406,6 +406,38 @@ Every command execution requires explicit approval:
 - `guard clear` — Clears session execution history.
 - `guard enable` / `guard disable` — Toggles Guardian subsystem and execution permissions.
 
+#### Persistent Memory Command Family (`memory` / `mem`)
+
+- `memory` — Displays persistent memory subsystem status and database statistics.
+- `memory help` — Complete reference for memory subcommands and categories.
+- `memory status` — Displays detailed database telemetry (WAL mode, FTS5 status, record counts).
+- `memory list [category]` — Lists stored memories, optionally filtered by category.
+- `memory show <id>` — Inspects a specific memory item by ID.
+- `memory save <category> <content>` — Saves an explicit user memory (with automatic secret redaction).
+- `memory edit <id> <new_content>` — Updates existing memory content.
+- `memory delete <id>` — Deletes a specific memory item.
+- `memory clear` — Deletes all stored memories after confirmation.
+- `memory search <query>` — Full-text relevance search over stored memories using FTS5 or LIKE.
+- `memory stats` — Displays breakdown of memories across all categories.
+- `memory export [path]` — Exports non-sensitive memories to a JSON file.
+- `memory import <path>` — Imports memories from a JSON file.
+
+#### Project Context Command Family (`project` / `proj`)
+
+- `project` — Displays current active project status and registered project list.
+- `project help` — Complete reference for project context commands.
+- `project status` — Displays project subsystem status and telemetry.
+- `project list` — Lists all registered developer projects.
+- `project add <path>` — Registers a new project directory (enforcing dangerous root protections).
+- `project use <name_or_id>` — Selects an active project context for AI conversations.
+- `project scan [name_or_id]` — Scans and indexes source files in a project (read-only, bounded).
+- `project refresh` — Re-scans active project and updates indexed files incrementally via SHA-256.
+- `project info [name_or_id]` — Displays detailed metrics (file counts, language distribution, index time).
+- `project files` — Lists all indexed files in the active project.
+- `project search <query>` — Full-text code search across indexed project files.
+- `project clear` — Deactivates the currently selected project context.
+- `project remove <name_or_id>` — Unregisters a project and removes its indexed files.
+
 ### Keyboard Shortcuts
 
 - <kbd>Enter</kbd> — Submit the command or AI prompt in the input field.
@@ -421,23 +453,24 @@ Every command execution requires explicit approval:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ GHOSTTRACE v0.6.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
+│ GHOSTTRACE v0.7.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
 ├──────────────────────────────────────────────┬─────────────────────────┤
 │ ConversationLog                              │ StatusPanel             │
 │                                              │                         │
-│ [Something has awakened inside this terminal]│ GhostTrace v0.6.0       │
+│ [Something has awakened inside this terminal]│ GhostTrace v0.7.0       │
 │                                              │                         │
-│ ghost> guard analyze git reset --hard        │ Environment: development│
-│ GHOSTTRACE:                                  │ Commands Run: 4         │
-│ Risk Level: [ HIGH RISK - BLOCKED ]          │                         │
-│ • [VCS-001] Hard git reset permanently      │ Subsystems:             │
-│   discards uncommitted modifications.        │ • Foundation : OK       │
-│ Suggested Alternative: git stash             │ • Interface  : ACTIVE   │
-│                                              │ • AI Engine  : READY    │
-│ ghost> guard run python --version            │ • Persona    : ACTIVE   │
-│ [Command Approval Modal Displayed]           │ • Dev Intel  : ACTIVE   │
-│                                              │ • Guardian   : ACTIVE   │
-│                                              │                         │
+│ ghost> memory list                           │ Environment: development│
+│ GHOSTTRACE PERSISTENT MEMORIES:              │ Commands Run: 5         │
+│ • [#1] [USER_PREFERENCE] Prefers typing hints│                         │
+│ • [#2] [WORKFLOW] Always run pytest before   │ Subsystems:             │
+│   committing.                                │ • Foundation : OK       │
+│                                              │ • Interface  : ACTIVE   │
+│ ghost> project use GhostTrace                │ • AI Engine  : READY    │
+│ [Active project switched to 'GhostTrace']    │ • Persona    : ACTIVE   │
+│                                              │ • Dev Intel  : ACTIVE   │
+│ ghost> guard run python --version            │ • Guardian   : ACTIVE   │
+│ [Command Approval Modal Displayed]           │ • Memory     : ACTIVE   │
+│                                              │ • Project    : GhostTrace│
 ├──────────────────────────────────────────────┴─────────────────────────┤
 │ ghost> [ Enter command or ask a programming question...              ] │
 ├────────────────────────────────────────────────────────────────────────┤

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from rich.table import Table
 
 from ghosttrace.terminal.command_registry import (
@@ -57,7 +59,7 @@ def handle_about(args: list[str], context: CommandContext) -> CommandResult:
         "  • Architecture : Fully offline-first, local CPU inference",
         "  • Platform     : Windows 10/11 64-bit native",
         "  • Target Spec  : Intel Core i3-1115G4, 12 GB RAM, Intel UHD graphics",
-        "  • Status       : Step 06 / 10 — Command Guardian & Execution Safety",
+        "  • Status       : Step 07 / 10 — Persistent Memory & Project Context",
     ]
     return CommandResult(success=True, output="\n".join(lines))
 
@@ -83,6 +85,12 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         from ghosttrace.guardian.engine import GuardianEngine
 
         guard_engine = GuardianEngine(context.settings)
+
+    mem_engine = context.memory_engine
+    if mem_engine is None:
+        from ghosttrace.memory.engine import MemoryEngine
+
+        mem_engine = MemoryEngine(context.settings)
 
     ai_status = ai_engine.get_status()
     if not ai_status.runtime_available:
@@ -115,6 +123,13 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
     else:
         guard_status_str = "[OK] ACTIVE"
 
+    if not mem_engine.is_enabled:
+        mem_status_str = "[!] DISABLED"
+    else:
+        active_p = mem_engine.get_active_project()
+        p_name = f" (PROJECT: {active_p.name})" if active_p else ""
+        mem_status_str = f"[OK] ACTIVE (SQLITE){p_name}"
+
     lines = [
         "APPLICATION SUBSYSTEM STATUS",
         "==================================================",
@@ -130,7 +145,7 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         f"  Ghost Persona (Step 04)     : {ghost_status_str}",
         f"  Developer Intel (Step 05)   : {dev_status_str}",
         f"  Command Guardian (Step 06)  : {guard_status_str}",
-        "  Persistent Memory (Step 07) : [..] NOT IMPLEMENTED",
+        f"  Persistent Memory (Step 07) : {mem_status_str}",
         "  System Diagnostics (Step 08): [..] NOT IMPLEMENTED",
         "==================================================",
     ]
@@ -797,6 +812,498 @@ def handle_guard(args: list[str], context: CommandContext) -> CommandResult:
     )
 
 
+def handle_memory(args: list[str], context: CommandContext) -> CommandResult:
+    """Manage persistent conversation and developer memory."""
+    mem_engine = context.memory_engine
+    if mem_engine is None:
+        from ghosttrace.memory.engine import MemoryEngine
+
+        mem_engine = MemoryEngine(context.settings)
+
+    subcommand = args[0].lower() if args else "status"
+    sub_args = args[1:] if len(args) > 1 else []
+
+    if subcommand in ("help", "--help", "-h"):
+        help_lines = [
+            "MEMORY SUBSYSTEM COMMANDS",
+            "==================================================",
+            "  memory                       — Show memory subsystem status",
+            "  memory help                  — Show this help screen",
+            "  memory status                — Show detailed database and context status",
+            "  memory list [category]       — List recent memories, optionally filtered",
+            "  memory search <query>        — Full-text search over memories",
+            "  memory show <id>             — Display full details of a memory item",
+            "  memory save <cat> <content>  — Explicitly store a memory item",
+            "  memory edit <id> <content>   — Update memory item content",
+            "  memory delete <id>           — Delete a memory item by ID",
+            "  memory clear [--force]       — Clear all memories (requires confirmation)",
+            "  memory stats                 — Show memory category and database statistics",
+            "  memory export <file.json>    — Export memories to a JSON file",
+            "  memory import <file.json>    — Import memories from a JSON file",
+            "==================================================",
+            "Categories: USER_PREFERENCE, USER_PROFILE, PROJECT_CONTEXT,",
+            "            TECHNICAL_DECISION, WORKFLOW, LEARNING, GENERAL",
+        ]
+        return CommandResult(success=True, output="\n".join(help_lines))
+
+    if subcommand == "status":
+        status = mem_engine.get_status()
+        active = mem_engine.get_active_project()
+        active_proj_str = f"{active.name} ({active.root_path})" if active else "None"
+        lines = [
+            "PERSISTENT MEMORY STATUS",
+            "==================================================",
+            f"  Memory Subsystem : {'ENABLED' if status.is_enabled else 'DISABLED'}",
+            f"  Database Path    : {status.database_path}",
+            f"  Database Size    : {status.database_size_bytes:,} bytes",
+            f"  WAL Mode Active  : {status.wal_mode}",
+            f"  FTS5 Search      : {'ENABLED' if status.fts5_available else 'FALLBACK (LIKE)'}",
+            f"  Total Memories   : {status.total_memories} / {status.max_items}",
+            f"  Conversations    : {status.total_conversations}",
+            f"  Messages Stored  : {status.total_messages}",
+            f"  Projects (Total) : {status.total_projects}",
+            f"  Project Files    : {status.total_project_files}",
+            f"  Active Project   : {active_proj_str}",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "list":
+        category = sub_args[0].upper() if sub_args else None
+        memories = mem_engine.list_memories(category=category, limit=50)
+        if not memories:
+            msg = f"No memories found{f' in category {category}' if category else ''}."
+            return CommandResult(success=True, output=msg)
+
+        table = Table(
+            title=f"STORED MEMORIES{' (' + category + ')' if category else ''}",
+            border_style="dim green",
+            show_header=True,
+        )
+        table.add_column("ID", style="bold #00ff66", no_wrap=True)
+        table.add_column("Category", style="cyan", no_wrap=True)
+        table.add_column("Imp", style="yellow", no_wrap=True)
+        table.add_column("Content Snippet", style="#99aa99")
+        table.add_column("Created", style="dim", no_wrap=True)
+
+        for m in memories:
+            snippet = m.content.replace("\n", " ")
+            if len(snippet) > 60:
+                snippet = snippet[:57] + "..."
+            created_str = time.strftime("%Y-%m-%d %H:%M", time.localtime(m.created_at))
+            table.add_row(
+                str(m.id),
+                m.category.value,
+                str(m.importance),
+                snippet,
+                created_str,
+            )
+        return CommandResult(success=True, output=table)
+
+    if subcommand == "search":
+        if not sub_args:
+            return CommandResult(success=False, output="Usage: memory search <query>")
+        query = " ".join(sub_args)
+        results = mem_engine.search_memories(query=query, limit=20)
+        if not results:
+            return CommandResult(success=True, output=f"No memories matched query: '{query}'")
+
+        table = Table(
+            title=f"MEMORY SEARCH RESULTS: '{query}'",
+            border_style="dim green",
+            show_header=True,
+        )
+        table.add_column("ID", style="bold #00ff66", no_wrap=True)
+        table.add_column("Category", style="cyan", no_wrap=True)
+        table.add_column("Score", style="yellow", no_wrap=True)
+        table.add_column("Snippet / Match", style="#99aa99")
+
+        for r in results:
+            snippet = r.snippet.replace("\n", " ")
+            if len(snippet) > 65:
+                snippet = snippet[:62] + "..."
+            table.add_row(
+                str(r.memory.id),
+                r.memory.category.value,
+                f"{r.score:.2f}",
+                snippet,
+            )
+        return CommandResult(success=True, output=table)
+
+    if subcommand == "show":
+        if not sub_args:
+            return CommandResult(success=False, output="Usage: memory show <id>")
+        try:
+            mem_id = int(sub_args[0])
+        except ValueError:
+            return CommandResult(success=False, output=f"Invalid memory ID: {sub_args[0]}")
+        item = mem_engine.get_memory(mem_id)
+        if item is None:
+            return CommandResult(success=False, output=f"Memory #{mem_id} not found.")
+
+        created_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(item.created_at))
+        updated_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(item.updated_at))
+        lines = [
+            f"MEMORY ITEM #{item.id}",
+            "==================================================",
+            f"  Category   : {item.category.value}",
+            f"  Source     : {item.source.value}",
+            f"  Importance : {item.importance}/10",
+            f"  Created At : {created_str}",
+            f"  Updated At : {updated_str}",
+            "--------------------------------------------------",
+            "CONTENT:",
+            item.content,
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "save":
+        if len(sub_args) < 2:
+            return CommandResult(
+                success=False,
+                output=(
+                    "Usage: memory save <category> <content>\n"
+                    "Categories: USER_PREFERENCE, USER_PROFILE, PROJECT_CONTEXT,\n"
+                    "            TECHNICAL_DECISION, WORKFLOW, LEARNING, GENERAL"
+                ),
+            )
+        from ghosttrace.memory.schemas import MemoryCategory, MemorySource
+
+        cat_input = sub_args[0].upper()
+        content = " ".join(sub_args[1:]).strip()
+
+        matched_cat = MemoryCategory.GENERAL
+        for cat in MemoryCategory:
+            if cat.value == cat_input or cat.name == cat_input:
+                matched_cat = cat
+                break
+
+        item = mem_engine.save_memory(
+            category=matched_cat,
+            content=content,
+            source=MemorySource.EXPLICIT_USER,
+            importance=5,
+        )
+        return CommandResult(
+            success=True,
+            output=f"Memory #{item.id} saved in category '{item.category.value}'.",
+        )
+
+    if subcommand == "edit":
+        if len(sub_args) < 2:
+            return CommandResult(success=False, output="Usage: memory edit <id> <new_content>")
+        try:
+            mem_id = int(sub_args[0])
+        except ValueError:
+            return CommandResult(success=False, output=f"Invalid memory ID: {sub_args[0]}")
+        new_content = " ".join(sub_args[1:]).strip()
+        updated = mem_engine.update_memory(mem_id, content=new_content)
+        if updated is None:
+            return CommandResult(success=False, output=f"Memory #{mem_id} not found.")
+        return CommandResult(success=True, output=f"Memory #{mem_id} updated successfully.")
+
+    if subcommand == "delete":
+        if not sub_args:
+            return CommandResult(success=False, output="Usage: memory delete <id>")
+        try:
+            mem_id = int(sub_args[0])
+        except ValueError:
+            return CommandResult(success=False, output=f"Invalid memory ID: {sub_args[0]}")
+        deleted = mem_engine.delete_memory(mem_id)
+        if deleted:
+            return CommandResult(success=True, output=f"Memory #{mem_id} permanently deleted.")
+        return CommandResult(success=False, output=f"Memory #{mem_id} not found.")
+
+    if subcommand == "clear":
+        force = any(a in ("--force", "-f") for a in sub_args)
+        if not force:
+            return CommandResult(
+                success=False,
+                output=(
+                    "WARNING: This will permanently delete all saved memories.\n"
+                    "To proceed, run: memory clear --force"
+                ),
+            )
+        count = mem_engine.clear_all_memories()
+        return CommandResult(success=True, output=f"Cleared {count} memories from database.")
+
+    if subcommand == "stats":
+        stats = mem_engine.get_memory_stats()
+        lines = [
+            "MEMORY SUBSYSTEM STATISTICS",
+            "==================================================",
+            f"  Total Memories   : {stats.get('total_memories', 0)}",
+            f"  Conversations    : {stats.get('total_conversations', 0)}",
+            f"  Messages Stored  : {stats.get('total_messages', 0)}",
+            f"  Database Size    : {stats.get('database_size_bytes', 0):,} bytes",
+            "--------------------------------------------------",
+            "Memories by Category:",
+        ]
+        by_cat = stats.get("by_category", {})
+        if isinstance(by_cat, dict):
+            for cat_name, cnt in by_cat.items():
+                lines.append(f"  • {cat_name:<20}: {cnt}")
+        lines.append("==================================================")
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "export":
+        if not sub_args:
+            return CommandResult(success=False, output="Usage: memory export <path.json>")
+        from pathlib import Path
+
+        path = Path(" ".join(sub_args).strip().strip('"').strip("'"))
+        try:
+            count = mem_engine.export_memories(path)
+            return CommandResult(
+                success=True,
+                output=f"Successfully exported {count} memories to {path}",
+            )
+        except Exception as exc:
+            return CommandResult(success=False, output=f"Export failed: {exc}")
+
+    if subcommand == "import":
+        if not sub_args:
+            return CommandResult(success=False, output="Usage: memory import <path.json>")
+        from pathlib import Path
+
+        path = Path(" ".join(sub_args).strip().strip('"').strip("'"))
+        try:
+            count = mem_engine.import_memories(path)
+            return CommandResult(
+                success=True,
+                output=f"Successfully imported {count} memories from {path}",
+            )
+        except Exception as exc:
+            return CommandResult(success=False, output=f"Import failed: {exc}")
+
+    return CommandResult(
+        success=False,
+        output=(
+            f"Unknown memory subcommand '{subcommand}'.\n"
+            "Use 'memory help' to view available subcommands."
+        ),
+    )
+
+
+def handle_project(args: list[str], context: CommandContext) -> CommandResult:
+    """Manage registered projects, project switching, scanning, and indexing."""
+    mem_engine = context.memory_engine
+    if mem_engine is None:
+        from ghosttrace.memory.engine import MemoryEngine
+
+        mem_engine = MemoryEngine(context.settings)
+
+    subcommand = args[0].lower() if args else "status"
+    sub_args = args[1:] if len(args) > 1 else []
+
+    if subcommand in ("help", "--help", "-h"):
+        help_lines = [
+            "PROJECT CONTEXT COMMANDS",
+            "==================================================",
+            "  project                      — Show current active project",
+            "  project help                 — Show this help screen",
+            "  project status               — Show active project status and statistics",
+            "  project add <path> [name]    — Register a project directory",
+            "  project list                 — List all registered projects",
+            "  project use <name_or_path>   — Switch active project context",
+            "  project info [name_or_path]  — Display detailed project configuration",
+            "  project scan [name_or_path]  — Scan and index project files into database",
+            "  project refresh              — Re-scan and re-index active project",
+            "  project remove <name_or_path>— Unregister project and delete its indexed files",
+            "  project clear                — Deselect active project context",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(help_lines))
+
+    if subcommand == "status":
+        active = mem_engine.get_active_project()
+        if not active:
+            return CommandResult(
+                success=True,
+                output=(
+                    "No active project selected.\n"
+                    "Use 'project add <path>' or 'project use <name>' to select one."
+                ),
+            )
+        info = mem_engine.get_project_info(active.name)
+        lines = [
+            f"ACTIVE PROJECT: {active.name}",
+            "==================================================",
+            f"  ID           : {active.id}",
+            f"  Root Path    : {active.root_path}",
+            f"  Indexed Files: {info.get('file_count', 0)}",
+            f"  Total Bytes  : {info.get('total_bytes', 0):,} bytes",
+            f"  Last Indexed : {active.last_indexed_at or 'Never'}",
+            f"  Registered   : {active.created_at}",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "list":
+        projects = mem_engine.list_projects()
+        if not projects:
+            return CommandResult(
+                success=True,
+                output="No projects registered. Register one with: project add <path> [name]",
+            )
+        active = mem_engine.get_active_project()
+        table = Table(
+            title="REGISTERED PROJECTS",
+            border_style="dim green",
+            show_header=True,
+        )
+        table.add_column("Active", style="bold #00ff66", no_wrap=True)
+        table.add_column("Name", style="cyan", no_wrap=True)
+        table.add_column("Files", style="yellow", no_wrap=True)
+        table.add_column("Root Path", style="#99aa99")
+        table.add_column("Last Indexed", style="dim", no_wrap=True)
+
+        for p in projects:
+            is_active = "*" if (active and active.id == p.id) else ""
+            info = mem_engine.get_project_info(p.name)
+            last_indexed_str = "Never"
+            if p.last_indexed_at:
+                last_indexed_str = time.strftime(
+                    "%Y-%m-%d %H:%M", time.localtime(p.last_indexed_at)
+                )
+            table.add_row(
+                is_active,
+                p.name,
+                str(info.get("file_count", 0)),
+                p.root_path,
+                last_indexed_str,
+            )
+        return CommandResult(success=True, output=table)
+
+    if subcommand == "add":
+        if not sub_args:
+            return CommandResult(success=False, output="Usage: project add <path> [name]")
+        from pathlib import Path
+
+        path_str = sub_args[0].strip('"').strip("'")
+        custom_name = sub_args[1].strip() if len(sub_args) > 1 else None
+        try:
+            proj = mem_engine.add_project(Path(path_str), name=custom_name)
+            return CommandResult(
+                success=True,
+                output=(
+                    f"Registered project '{proj.name}' at: {proj.root_path}\n"
+                    f"To index its files, run: project scan {proj.name}"
+                ),
+            )
+        except Exception as exc:
+            return CommandResult(success=False, output=f"Failed to add project: {exc}")
+
+    if subcommand == "use":
+        if not sub_args:
+            return CommandResult(success=False, output="Usage: project use <name_or_path>")
+        name_or_path = " ".join(sub_args).strip().strip('"').strip("'")
+        try:
+            proj = mem_engine.set_active_project(name_or_path)
+            return CommandResult(
+                success=True,
+                output=f"Switched active project to '{proj.name}' ({proj.root_path}).",
+            )
+        except Exception as exc:
+            return CommandResult(success=False, output=f"Failed to switch project: {exc}")
+
+    if subcommand == "clear":
+        mem_engine.clear_active_project()
+        return CommandResult(success=True, output="Cleared active project context.")
+
+    if subcommand == "info":
+        name_or_path = " ".join(sub_args).strip().strip('"').strip("'") if sub_args else None
+        try:
+            info = mem_engine.get_project_info(name_or_path)
+            lines = [
+                f"PROJECT INFORMATION: {info.get('name', 'Unknown')}",
+                "==================================================",
+                f"  ID           : {info.get('id')}",
+                f"  Root Path    : {info.get('root_path')}",
+                f"  Indexed Files: {info.get('file_count', 0)}",
+                f"  Total Bytes  : {info.get('total_bytes', 0):,} bytes",
+                f"  Last Indexed : {info.get('last_indexed_at') or 'Never'}",
+                "--------------------------------------------------",
+                "Languages:",
+            ]
+            langs = info.get("languages", {})
+            if isinstance(langs, dict):
+                for lang, count in langs.items():
+                    lines.append(f"  • {lang:<15}: {count} files")
+            lines.append("==================================================")
+            return CommandResult(success=True, output="\n".join(lines))
+        except Exception as exc:
+            return CommandResult(success=False, output=f"Could not retrieve project info: {exc}")
+
+    if subcommand in ("scan", "index"):
+        name_or_path = " ".join(sub_args).strip().strip('"').strip("'") if sub_args else None
+        try:
+            res = mem_engine.scan_project(name_or_path)
+            lines = [
+                f"INDEXING COMPLETE: {res.project_name}",
+                "==================================================",
+                f"  Files Scanned : {res.scanned_files}",
+                f"  Files Added   : {res.indexed_files}",
+                f"  Files Updated : {res.updated_files}",
+                f"  Files Stale   : {res.stale_files_removed} (removed)",
+                f"  Total Bytes   : {res.total_bytes:,} bytes",
+                f"  Elapsed Time  : {res.elapsed_seconds:.2f}s",
+                "==================================================",
+            ]
+            if res.errors:
+                lines.append("Errors encountered:")
+                for err in res.errors[:5]:
+                    lines.append(f"  • {err}")
+            return CommandResult(success=True, output="\n".join(lines))
+        except Exception as exc:
+            return CommandResult(success=False, output=f"Project scan failed: {exc}")
+
+    if subcommand == "refresh":
+        try:
+            res = mem_engine.refresh_active_project()
+            lines = [
+                f"ACTIVE PROJECT REFRESHED: {res.project_name}",
+                "==================================================",
+                f"  Files Scanned : {res.scanned_files}",
+                f"  Files Added   : {res.indexed_files}",
+                f"  Files Updated : {res.updated_files}",
+                f"  Files Stale   : {res.stale_files_removed} (removed)",
+                f"  Total Bytes   : {res.total_bytes:,} bytes",
+                f"  Elapsed Time  : {res.elapsed_seconds:.2f}s",
+                "==================================================",
+            ]
+            return CommandResult(success=True, output="\n".join(lines))
+        except Exception as exc:
+            return CommandResult(success=False, output=f"Project refresh failed: {exc}")
+
+    if subcommand in ("remove", "delete", "rm"):
+        if not sub_args:
+            return CommandResult(success=False, output="Usage: project remove <name_or_path>")
+        name_or_path = " ".join(sub_args).strip().strip('"').strip("'")
+        try:
+            removed = mem_engine.remove_project(name_or_path)
+            if removed:
+                return CommandResult(
+                    success=True,
+                    output=f"Unregistered project '{name_or_path}' and removed its indexed files.",
+                )
+            return CommandResult(
+                success=False,
+                output=f"Project '{name_or_path}' not found.",
+            )
+        except Exception as exc:
+            return CommandResult(success=False, output=f"Failed to remove project: {exc}")
+
+    return CommandResult(
+        success=False,
+        output=(
+            f"Unknown project subcommand '{subcommand}'.\n"
+            "Use 'project help' to view available subcommands."
+        ),
+    )
+
+
 def create_default_registry() -> CommandRegistry:
     """Create and populate a CommandRegistry with all standard GhostTrace commands."""
     registry = CommandRegistry()
@@ -888,6 +1395,26 @@ def create_default_registry() -> CommandRegistry:
             ),
             aliases=["guardian", "safety"],
             handler=handle_guard,
+        )
+    )
+    registry.register(
+        Command(
+            name="memory",
+            description="Persistent memory management (save, list, search, clear, stats).",
+            usage=(
+                "memory [help|status|list|search|show|save|edit|delete|clear|stats|export|import]"
+            ),
+            aliases=["mem"],
+            handler=handle_memory,
+        )
+    )
+    registry.register(
+        Command(
+            name="project",
+            description="Project context indexing and management (add, list, use, scan, info).",
+            usage="project [help|status|add|list|use|info|scan|refresh|remove|clear]",
+            aliases=["proj"],
+            handler=handle_project,
         )
     )
     registry.register(

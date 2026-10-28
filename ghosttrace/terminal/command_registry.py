@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from ghosttrace.developer.engine import DeveloperEngine
     from ghosttrace.ghost.engine import GhostEngine
     from ghosttrace.guardian.engine import GuardianEngine
+    from ghosttrace.memory.engine import MemoryEngine
 
 logger = logging.getLogger("ghosttrace.terminal.commands")
 
@@ -32,6 +33,7 @@ class CommandContext:
     ghost_engine: GhostEngine | None = None
     dev_engine: DeveloperEngine | None = None
     guardian_engine: GuardianEngine | None = None
+    memory_engine: MemoryEngine | None = None
 
 
 @dataclass

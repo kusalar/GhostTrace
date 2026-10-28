@@ -19,6 +19,7 @@ from ghosttrace.ghost.engine import GhostEngine
 from ghosttrace.guardian.engine import GuardianEngine
 from ghosttrace.guardian.explanations import format_execution_result
 from ghosttrace.guardian.schemas import ExecutionStatus
+from ghosttrace.memory.engine import MemoryEngine
 from ghosttrace.terminal.command_parser import parse_command_line
 from ghosttrace.terminal.command_registry import CommandContext, CommandRegistry, CommandResult
 from ghosttrace.terminal.commands import create_default_registry
@@ -89,10 +90,12 @@ class GhostTraceApp(App[int]):
         ghost_engine: GhostEngine | None = None,
         dev_engine: DeveloperEngine | None = None,
         guardian_engine: GuardianEngine | None = None,
+        memory_engine: MemoryEngine | None = None,
         **kwargs: object,
     ) -> None:
         super().__init__(**kwargs)
         self.settings = settings or get_settings()
+        self.session_id = uuid.uuid4().hex[:12]
         self.history = SessionHistory()
         self.registry = registry or create_default_registry()
         if ghost_engine is not None:
@@ -128,11 +131,23 @@ class GhostTraceApp(App[int]):
         else:
             self.guardian_engine = GuardianEngine(self.settings)
 
+        if memory_engine is not None:
+            self.memory_engine = memory_engine
+        elif (
+            ai_engine is not None
+            and getattr(ai_engine, "memory_engine", None) is not None
+            and isinstance(ai_engine.memory_engine, MemoryEngine)
+        ):
+            self.memory_engine = ai_engine.memory_engine
+        else:
+            self.memory_engine = MemoryEngine(self.settings)
+
         self.ai_engine = ai_engine or AIEngine(
             self.settings,
             ghost_engine=self.ghost_engine,
             developer_engine=self.dev_engine,
             guardian_engine=self.guardian_engine,
+            memory_engine=self.memory_engine,
         )
         self.context = CommandContext(
             settings=self.settings,
@@ -141,6 +156,7 @@ class GhostTraceApp(App[int]):
             ghost_engine=self.ghost_engine,
             dev_engine=self.dev_engine,
             guardian_engine=self.guardian_engine,
+            memory_engine=self.memory_engine,
         )
         self.is_generating = False
         self.is_executing_command = False
@@ -169,6 +185,8 @@ class GhostTraceApp(App[int]):
     def on_unmount(self) -> None:
         """Release local AI resources cleanly upon shutdown."""
         self.ai_engine.unload_model()
+        if self.memory_engine is not None:
+            self.memory_engine.close()
         logger.info("GhostTrace terminal UI unmounted.")
 
     def _refresh_subsystem_status(self) -> None:
@@ -220,6 +238,15 @@ class GhostTraceApp(App[int]):
                     is_active=self.guardian_engine.is_enabled,
                     execution_enabled=self.guardian_engine.is_execution_enabled,
                     require_approval=self.guardian_engine.policy.require_approval,
+                )
+
+            # Update Persistent Memory & Project telemetry
+            if self.memory_engine is not None and isinstance(self.memory_engine, MemoryEngine):
+                active_proj = self.memory_engine.get_active_project()
+                proj_name = active_proj.name if active_proj else None
+                status_panel.update_memory_status(
+                    is_active=self.memory_engine.is_enabled,
+                    project_name=proj_name,
                 )
         except Exception as exc:
             logger.debug("Could not refresh subsystem status: %s", exc)
@@ -288,6 +315,12 @@ class GhostTraceApp(App[int]):
         # Route natural language query to local AI engine
         self.history.add(raw_text)
         status_panel.update_command_count(self.history.count)
+
+        if self.memory_engine is not None and self.memory_engine.is_enabled:
+            try:
+                self.memory_engine.persist_user_message(self.session_id, raw_text)
+            except Exception as exc:
+                logger.debug("Failed to persist user message: %s", exc)
 
         if self.is_generating:
             conv_log.add_busy_warning(raw_text)
@@ -358,6 +391,11 @@ class GhostTraceApp(App[int]):
 
             final_text = "".join(collected).strip()
             self.call_from_thread(conv_log.update_ai_response, widget_id, final_text, True)
+            if self.memory_engine is not None and self.memory_engine.is_enabled and final_text:
+                try:
+                    self.memory_engine.persist_assistant_message(self.session_id, final_text)
+                except Exception as exc:
+                    logger.debug("Failed to persist assistant message: %s", exc)
         except Exception as exc:
             logger.exception("AI query generation failed: %s", exc)
             self.call_from_thread(

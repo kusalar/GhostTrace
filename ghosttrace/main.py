@@ -127,6 +127,131 @@ def guard_explain(
     console.print(engine.explain(cmd_str))
 
 
+memory_app = typer.Typer(
+    name="memory",
+    help="Persistent conversation and developer memory subsystem.",
+    no_args_is_help=False,
+)
+app.add_typer(memory_app, name="memory")
+
+
+@memory_app.callback(invoke_without_command=True)
+def memory_default(ctx: typer.Context) -> None:
+    """Show Memory status and item counts."""
+    if ctx.invoked_subcommand is None:
+        from rich.console import Console
+
+        from ghosttrace.memory.engine import MemoryEngine
+
+        engine = MemoryEngine()
+        status = engine.get_status()
+        console = Console()
+        fts_str = "YES" if status.fts5_available else "LIKE"
+        console.print(
+            f"[bold #00ff66]Memory:[/] {'ACTIVE' if status.is_enabled else 'DISABLED'} | "
+            f"Memories: {status.total_memories} | FTS5: {fts_str}"
+        )
+
+
+@memory_app.command(name="status")
+def memory_status() -> None:
+    """Display memory subsystem database telemetry and statistics."""
+    from rich.console import Console
+
+    from ghosttrace.memory.engine import MemoryEngine
+
+    engine = MemoryEngine()
+    status = engine.get_status()
+    console = Console()
+    console.print(f"Memory Subsystem : {'ACTIVE' if status.is_enabled else 'DISABLED'}")
+    console.print(f"Database Path    : {status.database_path}")
+    console.print(f"Database Size    : {status.database_size_bytes:,} bytes")
+    console.print(f"WAL Mode         : {status.wal_mode}")
+    console.print(f"FTS5 Search      : {'ACTIVE' if status.fts5_available else 'FALLBACK (LIKE)'}")
+    console.print(f"Total Memories   : {status.total_memories}")
+    console.print(f"Conversations    : {status.total_conversations}")
+    console.print(f"Messages Stored  : {status.total_messages}")
+
+
+@memory_app.command(name="list")
+def memory_list(
+    category: Annotated[str | None, typer.Option(help="Filter by category.")] = None,
+) -> None:
+    """List stored memories."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from ghosttrace.memory.engine import MemoryEngine
+
+    engine = MemoryEngine()
+    memories = engine.list_memories(category=category, limit=50)
+    console = Console()
+    if not memories:
+        console.print("No memories found.")
+        return
+
+    table = Table(title="STORED MEMORIES", border_style="dim green")
+    table.add_column("ID", style="bold #00ff66")
+    table.add_column("Category", style="cyan")
+    table.add_column("Imp", style="yellow")
+    table.add_column("Content")
+    for m in memories:
+        snippet = m.content[:50] + "..." if len(m.content) > 50 else m.content
+        table.add_row(str(m.id), m.category.value, str(m.importance), snippet)
+    console.print(table)
+
+
+project_app = typer.Typer(
+    name="project",
+    help="Project context discovery, registration, and indexing subsystem.",
+    no_args_is_help=False,
+)
+app.add_typer(project_app, name="project")
+
+
+@project_app.callback(invoke_without_command=True)
+def project_default(ctx: typer.Context) -> None:
+    """Show active project status."""
+    if ctx.invoked_subcommand is None:
+        from rich.console import Console
+
+        from ghosttrace.memory.engine import MemoryEngine
+
+        engine = MemoryEngine()
+        active = engine.get_active_project()
+        console = Console()
+        if active:
+            console.print(f"[bold #00ff66]Active Project:[/] {active.name} ({active.root_path})")
+        else:
+            console.print("[dim]No active project selected.[/]")
+
+
+@project_app.command(name="list")
+def project_list() -> None:
+    """List registered projects."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from ghosttrace.memory.engine import MemoryEngine
+
+    engine = MemoryEngine()
+    projects = engine.list_projects()
+    active = engine.get_active_project()
+    console = Console()
+    if not projects:
+        console.print("No registered projects.")
+        return
+
+    table = Table(title="REGISTERED PROJECTS", border_style="dim green")
+    table.add_column("Active", style="bold #00ff66")
+    table.add_column("Name", style="cyan")
+    table.add_column("Root Path")
+    for p in projects:
+        is_active = "*" if (active and active.id == p.id) else ""
+        table.add_row(is_active, p.name, p.root_path)
+    console.print(table)
+
+
 def main(args: list[str] | None = None) -> int:
     """Standard CLI entry point returning exit code."""
     try:

@@ -12,7 +12,7 @@ def test_default_configuration() -> None:
     settings = Settings()
 
     assert settings.app_name == "GhostTrace"
-    assert settings.app_version == "0.6.0"
+    assert settings.app_version == "0.7.0"
     assert "haunted" in settings.app_description.lower()
     assert settings.env == "development"
     assert settings.debug is False
@@ -268,3 +268,24 @@ def test_guard_settings_validation() -> None:
     # Timeout clamped to max_timeout if larger
     s = Settings(guard_timeout_seconds=100, guard_max_timeout_seconds=50)
     assert s.guard_timeout_seconds == 50
+
+
+def test_memory_and_project_configuration() -> None:
+    """Verify Step 07 memory and project context settings and validation."""
+    s = Settings()
+    assert s.memory_enabled is True
+    assert s.memory_persist_conversations is True
+    assert s.memory_max_items == 500
+    assert s.memory_max_content_chars == 10000
+    assert s.project_enabled is True
+    assert s.project_max_files == 500
+
+    # Validation limits
+    with pytest.raises(ValidationError, match="Invalid memory_max_items"):
+        Settings(memory_max_items=0)
+
+    with pytest.raises(ValidationError, match="Invalid project_max_files"):
+        Settings(project_max_files=0)
+
+    with pytest.raises(ValidationError, match="Invalid memory_max_context_chars"):
+        Settings(memory_max_context_chars=50)

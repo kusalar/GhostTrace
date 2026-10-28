@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Application Metadata
     app_name: str = "GhostTrace"
-    app_version: str = "0.6.0"
+    app_version: str = "0.7.0"
     app_description: str = "Offline-first AI-powered haunted terminal companion."
 
     # Environment & Execution Mode
@@ -175,6 +175,74 @@ class Settings(BaseSettings):
     guard_blocked_commands_enabled: bool = Field(
         default=True,
         description="Enforce strict blocking of dangerous and malicious commands.",
+    )
+
+    # Persistent Memory & Project Context (Step 07)
+    memory_enabled: bool = Field(
+        default=True,
+        description="Enable or disable persistent memory and project context subsystem.",
+    )
+    memory_persist_conversations: bool = Field(
+        default=True,
+        description="Persist user and assistant conversation exchanges across sessions.",
+    )
+    memory_max_items: int = Field(
+        default=500,
+        description="Maximum number of persistent memory items stored.",
+    )
+    memory_max_messages: int = Field(
+        default=100,
+        description="Maximum number of messages retained per conversation thread.",
+    )
+    memory_max_content_chars: int = Field(
+        default=10000,
+        description="Maximum character length permitted for an individual memory item.",
+    )
+    memory_max_context_chars: int = Field(
+        default=4000,
+        description="Maximum characters of retrieved memory context injected into prompt.",
+    )
+    memory_max_retrieved: int = Field(
+        default=5,
+        description="Maximum number of relevant memory items retrieved per query.",
+    )
+    memory_retention_days: int = Field(
+        default=90,
+        description="Automatic retention window in days for conversation history.",
+    )
+    project_enabled: bool = Field(
+        default=True,
+        description="Enable or disable project registration and context indexing.",
+    )
+    project_max_files: int = Field(
+        default=500,
+        description="Maximum number of files indexed per registered project.",
+    )
+    project_max_file_bytes: int = Field(
+        default=262144,
+        description="Maximum file size in bytes eligible for indexing (default 256 KB).",
+    )
+    project_max_total_bytes: int = Field(
+        default=5242880,
+        description="Maximum total bytes of indexed text per project (default 5 MB).",
+    )
+    project_max_depth: int = Field(
+        default=12,
+        description="Maximum directory nesting depth allowed during project scanning.",
+    )
+    project_max_context_chars: int = Field(
+        default=8000,
+        description="Maximum characters of project context injected into prompt.",
+    )
+    context_max_total_chars: int = Field(
+        default=10000,
+        description="Global ceiling on total combined memory and project context injected.",
+    )
+    memory_database_path: Path | None = Field(
+        default=None,
+        description=(
+            "Explicit path to SQLite database. Defaults to {app_data_dir}/db/ghosttrace.db."
+        ),
     )
 
     model_config = SettingsConfigDict(
@@ -343,6 +411,102 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         return value
 
+    @field_validator("memory_max_items")
+    @classmethod
+    def validate_memory_max_items(cls, value: int) -> int:
+        if not (1 <= value <= 10000):
+            msg = f"Invalid memory_max_items {value}. Must be between 1 and 10000."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("memory_max_messages")
+    @classmethod
+    def validate_memory_max_messages(cls, value: int) -> int:
+        if not (10 <= value <= 5000):
+            msg = f"Invalid memory_max_messages {value}. Must be between 10 and 5000."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("memory_max_content_chars")
+    @classmethod
+    def validate_memory_max_content_chars(cls, value: int) -> int:
+        if not (100 <= value <= 100000):
+            msg = f"Invalid memory_max_content_chars {value}. Must be between 100 and 100000."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("memory_max_context_chars")
+    @classmethod
+    def validate_memory_max_context_chars(cls, value: int) -> int:
+        if not (100 <= value <= 20000):
+            msg = f"Invalid memory_max_context_chars {value}. Must be between 100 and 20000."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("memory_max_retrieved")
+    @classmethod
+    def validate_memory_max_retrieved(cls, value: int) -> int:
+        if not (1 <= value <= 50):
+            msg = f"Invalid memory_max_retrieved {value}. Must be between 1 and 50."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("memory_retention_days")
+    @classmethod
+    def validate_memory_retention_days(cls, value: int) -> int:
+        if not (1 <= value <= 3650):
+            msg = f"Invalid memory_retention_days {value}. Must be between 1 and 3650."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("project_max_files")
+    @classmethod
+    def validate_project_max_files(cls, value: int) -> int:
+        if not (1 <= value <= 5000):
+            msg = f"Invalid project_max_files {value}. Must be between 1 and 5000."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("project_max_file_bytes")
+    @classmethod
+    def validate_project_max_file_bytes(cls, value: int) -> int:
+        if not (1024 <= value <= 10485760):
+            msg = f"Invalid project_max_file_bytes {value}. Must be between 1024 and 10485760."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("project_max_total_bytes")
+    @classmethod
+    def validate_project_max_total_bytes(cls, value: int) -> int:
+        if not (10240 <= value <= 104857600):
+            msg = f"Invalid project_max_total_bytes {value}. Must be between 10240 and 104857600."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("project_max_depth")
+    @classmethod
+    def validate_project_max_depth(cls, value: int) -> int:
+        if not (1 <= value <= 32):
+            msg = f"Invalid project_max_depth {value}. Must be between 1 and 32."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("project_max_context_chars")
+    @classmethod
+    def validate_project_max_context_chars(cls, value: int) -> int:
+        if not (100 <= value <= 50000):
+            msg = f"Invalid project_max_context_chars {value}. Must be between 100 and 50000."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("context_max_total_chars")
+    @classmethod
+    def validate_context_max_total_chars(cls, value: int) -> int:
+        if not (500 <= value <= 100000):
+            msg = f"Invalid context_max_total_chars {value}. Must be between 500 and 100000."
+            raise ValueError(msg)
+        return value
+
     def model_post_init(self, __context: object) -> None:
         """Resolve computed directories and debug-level adjustments."""
         super().model_post_init(__context)
@@ -365,6 +529,13 @@ class Settings(BaseSettings):
             else (self.app_data_dir / "db").resolve()
         )
         object.__setattr__(self, "db_dir", resolved_db_dir)
+
+        resolved_db_path = (
+            Path(self.memory_database_path).resolve()
+            if self.memory_database_path is not None
+            else (resolved_db_dir / "ghosttrace.db").resolve()
+        )
+        object.__setattr__(self, "memory_database_path", resolved_db_path)
 
         resolved_log_dir = (
             Path(self.log_dir).resolve()

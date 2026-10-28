@@ -12,11 +12,11 @@ def test_cli_version() -> None:
     """Verify --version and -v return version string and code 0."""
     res1 = runner.invoke(app, ["--version"])
     assert res1.exit_code == 0
-    assert "GhostTrace v0.6.0" in res1.stdout
+    assert "GhostTrace v0.7.0" in res1.stdout
 
     res2 = runner.invoke(app, ["-v"])
     assert res2.exit_code == 0
-    assert "GhostTrace v0.6.0" in res2.stdout
+    assert "GhostTrace v0.7.0" in res2.stdout
 
 
 def test_cli_help() -> None:
@@ -82,3 +82,24 @@ def test_cli_guard_subcommands() -> None:
     res_explain = runner.invoke(app, ["guard", "explain", "git", "status"])
     assert res_explain.exit_code == 0
     assert "COMMAND EXPLANATION & PURPOSE" in res_explain.stdout
+
+
+def test_cli_memory_and_project_subcommands() -> None:
+    """Verify 'memory' and 'project' Typer CLI subcommands work as expected."""
+    # memory default
+    res_mem = runner.invoke(app, ["memory"])
+    assert res_mem.exit_code == 0
+    assert "Memory:" in res_mem.stdout
+
+    # memory status
+    res_mem_status = runner.invoke(app, ["memory", "status"])
+    assert res_mem_status.exit_code == 0
+    assert "Memory Subsystem :" in res_mem_status.stdout
+
+    # project default
+    res_proj = runner.invoke(app, ["project"])
+    assert res_proj.exit_code == 0
+
+    # project list
+    res_proj_list = runner.invoke(app, ["project", "list"])
+    assert res_proj_list.exit_code == 0

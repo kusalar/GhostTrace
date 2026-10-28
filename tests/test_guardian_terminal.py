@@ -224,6 +224,12 @@ async def test_app_guard_run_triggers_approval_modal() -> None:
         assert len(app.screen_stack) == 1
 
         conv_log = app.query_one("#conversation-log", ConversationLog)
+        for _ in range(40):
+            await pilot.pause(0.05)
+            if not getattr(app, "is_executing_command", False) and any(
+                "EXECUTION RESULT" in str(child.render()) for child in conv_log.children
+            ):
+                break
         assert any("EXECUTION RESULT" in str(child.render()) for child in conv_log.children)
 
 
