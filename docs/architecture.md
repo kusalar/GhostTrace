@@ -1,14 +1,14 @@
 # GhostTrace Architecture Specification
 
-> **Status:** Step 04 / 10 — Ghost Personality & Behaviour Engine  
-> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), and Ghost Personality & Behaviour Engine are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
+> **Status:** Step 05 / 10 — Developer Intelligence & Coding Assistance  
+> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, and Developer Intelligence & Safe Code Analysis are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
 
 ---
 
 ## 1. Architectural Overview
 
 **GhostTrace** ("The AI That Haunts Your Terminal") is an offline-first, local AI terminal companion built for developers. It unifies three distinct roles:
-1. **Developer Assistant:** Code generation, error triage, shell command synthesis, and interactive debugging.
+1. **Developer Assistant:** Code explanation, debugging, review, generation, refactoring, test generation, and safe local static analysis.
 2. **Digital Ghost:** Context-aware terminal presence with evolving persona traits, haunting atmospheric effects, and responsive dialogue.
 3. **Terminal Guardian:** Pre-execution command interception and safety analysis to prevent destructive shell operations.
 
@@ -44,9 +44,12 @@
 │(Implemented) │        │(Implemented) │        │  (Planned)   │
 └───────┬──────┘        └───────┬──────┘        └───────┬──────┘
         │                       │                       │
-        └───────────────────────┼───────────────────────┘
-                                │
-        ┌───────────────────────┼───────────────────────┐
+        │       ┌───────────────┴──────────────┐        │
+        │       │    Developer Intelligence    │        │
+        └──────►│        (Implemented)         │        │
+                └───────────────┬──────────────┘        │
+                                │                       │
+        ┌───────────────────────┼───────────────────────┘
         ▼                       ▼                       ▼
 ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
 │Memory System │        │System Monitor│        │  Core Config │
@@ -108,6 +111,19 @@
   - `response_modifier`: Multi-layered system prompt composition pipeline injecting base identity, ghost persona, traits, and context guidance while strictly preserving truthfulness and developer safety.
   - `schemas`: Typed schemas and enums (`GhostProfileId`, `GhostMood`, `InteractionContext`, `PersonalityStatus`).
 
+### `ghosttrace.developer` (Implemented in Step 05)
+- **Status:** Implemented (Developer Intelligence & Safe Code Analysis).
+- **Responsibility:** High-level programming assistant capabilities, intent classification, bounded code context construction, safe AST static analysis, polyglot language detection, and task-specific prompt composition.
+- **Components:**
+  - `DeveloperEngine`: High-level facade coordinating intent detection, context assembly, static analysis, and prompt generation.
+  - `intents`: Rule-based developer intent classifier supporting 9 discrete intents (`EXPLAIN_CODE`, `DEBUG_CODE`, `REVIEW_CODE`, `GENERATE_CODE`, `REFACTOR_CODE`, `GENERATE_TESTS`, `OPTIMIZE_CODE`, `GENERAL_PROGRAMMING`, `UNKNOWN`) with CLI keyword exclusion.
+  - `languages`: Polyglot language registry and detector supporting 15+ languages (Python, JS, TS, Java, C, C++, C#, Go, Rust, PHP, HTML, CSS, SQL, Bash, PowerShell) via fences, file extensions, and syntax regex.
+  - `code_analysis`: Safe static analyzer using Python's standard library `ast.parse` for syntax trees, function/class discovery, import mapping, bare except identification, and polyglot delimiter validation. Strictly zero code execution.
+  - `context`: Context builder extracting markdown code blocks, compiler tracebacks, and applying safety truncation limits (`GHOSTTRACE_DEV_MAX_CODE_CHARS`, `GHOSTTRACE_DEV_MAX_CONTEXT_CHARS`).
+  - `prompts`: Task-specific prompt builders injecting structured instructions (findings severity, testing checklists, edge cases) and static analysis ground truth into the AI prompt pipeline.
+  - `responses`: Presentation formatters rendering formatted terminal banners, static analysis reports, and task-oriented summaries.
+  - `schemas`: Typed Pydantic models and Enums (`DeveloperIntent`, `ReviewSeverity`, `ReviewFinding`, `CodeAnalysisResult`, `DeveloperContext`, `DeveloperTaskRequest`, `DeveloperTaskResult`).
+
 ### `ghosttrace.safety` (Planned — Step 06)
 - **Status:** Package initialized; implementation planned.
 - **Responsibility:** Terminal guardian analyzing shell commands before execution with multi-tier risk classification (`SAFE`, `WARNING`, `DANGEROUS`, `BLOCKED`).
@@ -128,7 +144,7 @@
 2. **Step 02: Interactive Terminal Interface & CLI** *(Completed)*
 3. **Step 03: Local AI Integration** *(Completed)*
 4. **Step 04: Ghost Personality & Behaviour Engine** *(Completed)*
-5. **Step 05: Developer Intelligence & Coding Assistance**
+5. **Step 05: Developer Intelligence & Coding Assistance** *(Completed)*
 6. **Step 06: Command Guardian & Execution Safety**
 7. **Step 07: Persistent Memory & Project Context**
 8. **Step 08: System Awareness & Diagnostics**

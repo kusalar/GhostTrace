@@ -10,6 +10,7 @@ from ghosttrace.ai.inference import InferenceEngine
 from ghosttrace.ai.model_manager import ModelManager, check_runtime_availability
 from ghosttrace.ai.schemas import AIStatus, InferenceConfig, InferenceResult
 from ghosttrace.config.settings import Settings
+from ghosttrace.developer.engine import DeveloperEngine
 from ghosttrace.ghost.engine import GhostEngine
 
 logger = logging.getLogger("ghosttrace.ai.engine")
@@ -18,9 +19,17 @@ logger = logging.getLogger("ghosttrace.ai.engine")
 class AIEngine:
     """Central AI engine facade integrating model lifecycle, context memory, and inference."""
 
-    def __init__(self, settings: Settings, ghost_engine: GhostEngine | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        ghost_engine: GhostEngine | None = None,
+        developer_engine: DeveloperEngine | None = None,
+    ) -> None:
         self.settings = settings
         self.ghost_engine = ghost_engine or GhostEngine(settings)
+        self.developer_engine = developer_engine or DeveloperEngine(
+            settings, ghost_engine=self.ghost_engine
+        )
         self.model_manager = ModelManager(settings)
         self.inference_config = InferenceConfig(
             context_size=settings.ai_context_size,
@@ -77,9 +86,22 @@ class AIEngine:
     def ask(self, prompt: str) -> InferenceResult:
         """Synchronously ask a question and receive an assistant response."""
         model = self.model_manager.load_model()
+
+        dev_instructions: str | None = None
+        if (
+            self.developer_engine is not None
+            and self.developer_engine.is_enabled
+            and self.developer_engine.is_developer_query(prompt)
+        ):
+            _, dev_instructions = self.developer_engine.prepare_developer_prompt(prompt)
+
         if self.ghost_engine is not None:
-            composed_prompt = self.ghost_engine.compose_system_prompt(user_query=prompt)
+            composed_prompt = self.ghost_engine.compose_system_prompt(
+                user_query=prompt,
+                developer_instructions=dev_instructions,
+            )
             self.conversation.update_system_prompt(composed_prompt)
+
         self.conversation.add_user_message(prompt)
         messages = self.conversation.get_messages_for_llm()
 
@@ -90,9 +112,22 @@ class AIEngine:
     def ask_stream(self, prompt: str) -> Iterator[str]:
         """Stream assistant response tokens and record completed message in conversation."""
         model = self.model_manager.load_model()
+
+        dev_instructions: str | None = None
+        if (
+            self.developer_engine is not None
+            and self.developer_engine.is_enabled
+            and self.developer_engine.is_developer_query(prompt)
+        ):
+            _, dev_instructions = self.developer_engine.prepare_developer_prompt(prompt)
+
         if self.ghost_engine is not None:
-            composed_prompt = self.ghost_engine.compose_system_prompt(user_query=prompt)
+            composed_prompt = self.ghost_engine.compose_system_prompt(
+                user_query=prompt,
+                developer_instructions=dev_instructions,
+            )
             self.conversation.update_system_prompt(composed_prompt)
+
         self.conversation.add_user_message(prompt)
         messages = self.conversation.get_messages_for_llm()
 

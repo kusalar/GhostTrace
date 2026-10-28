@@ -12,7 +12,7 @@ def test_default_configuration() -> None:
     settings = Settings()
 
     assert settings.app_name == "GhostTrace"
-    assert settings.app_version == "0.4.0"
+    assert settings.app_version == "0.5.0"
     assert "haunted" in settings.app_description.lower()
     assert settings.env == "development"
     assert settings.debug is False
@@ -45,6 +45,12 @@ def test_default_configuration() -> None:
     assert settings.ghost_enabled is True
     assert settings.ghost_profile == "forgotten-machine"
     assert settings.ghost_mood_enabled is True
+
+    # Verify developer assistant default parameters (Step 05)
+    assert settings.dev_enabled is True
+    assert settings.dev_static_analysis is True
+    assert settings.dev_max_code_chars == 20000
+    assert settings.dev_max_context_chars == 30000
 
 
 def test_environment_variable_overrides(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -192,3 +198,23 @@ def test_ghost_settings_validation() -> None:
 
     with pytest.raises(ValidationError, match="Invalid ghost_profile"):
         Settings(ghost_profile="invalid-ghost-profile")
+
+
+def test_dev_settings_validation() -> None:
+    """Verify validation on developer assistant configuration limits."""
+    settings = Settings(
+        dev_enabled=False,
+        dev_static_analysis=False,
+        dev_max_code_chars=5000,
+        dev_max_context_chars=10000,
+    )
+    assert settings.dev_enabled is False
+    assert settings.dev_static_analysis is False
+    assert settings.dev_max_code_chars == 5000
+    assert settings.dev_max_context_chars == 10000
+
+    with pytest.raises(ValidationError, match="Invalid dev_max_code_chars"):
+        Settings(dev_max_code_chars=10)  # must be >= 100
+
+    with pytest.raises(ValidationError, match="Invalid dev_max_context_chars"):
+        Settings(dev_max_context_chars=50)  # must be >= 100

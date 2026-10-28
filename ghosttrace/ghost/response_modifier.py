@@ -63,6 +63,7 @@ def compose_personality_prompt(
     traits: PersonalityTraits,
     context: InteractionContext,
     base_prompt: str = DEVELOPER_SYSTEM_PROMPT,
+    developer_instructions: str | None = None,
 ) -> str:
     """Build a multi-layered prompt combining base rules, persona, traits, and context."""
     sections: list[str] = [
@@ -84,6 +85,20 @@ def compose_personality_prompt(
             "",
             "=== INTERACTION CONTEXT ===",
             get_behavioural_instructions(context, profile).strip(),
+        ]
+    )
+
+    if developer_instructions:
+        sections.extend(
+            [
+                "",
+                "=== DEVELOPER TASK INSTRUCTIONS ===",
+                developer_instructions.strip(),
+            ]
+        )
+
+    sections.extend(
+        [
             "",
             "=== ABSOLUTE SAFETY & TRUTHFULNESS GUARDRAILS ===",
             "- Never invent tool executions, shell results, or pretend to read the filesystem.",

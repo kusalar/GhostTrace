@@ -57,7 +57,7 @@ def handle_about(args: list[str], context: CommandContext) -> CommandResult:
         "  • Architecture : Fully offline-first, local CPU inference",
         "  • Platform     : Windows 10/11 64-bit native",
         "  • Target Spec  : Intel Core i3-1115G4, 12 GB RAM, Intel UHD graphics",
-        "  • Status       : Step 04 / 10 — Ghost Personality & Behaviour Engine",
+        "  • Status       : Step 05 / 10 — Developer Intelligence & Coding Assistance",
     ]
     return CommandResult(success=True, output="\n".join(lines))
 
@@ -73,6 +73,10 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
     ghost_engine = context.ghost_engine
     if ghost_engine is None:
         ghost_engine = ai_engine.ghost_engine
+
+    dev_engine = context.dev_engine
+    if dev_engine is None:
+        dev_engine = ai_engine.developer_engine
 
     ai_status = ai_engine.get_status()
     if not ai_status.runtime_available:
@@ -90,6 +94,12 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         else "[!] DISABLED"
     )
 
+    dev_status_str = (
+        "[OK] ACTIVE (STATIC ANALYSIS ON)"
+        if (dev_engine.is_enabled and dev_engine._static_analysis_enabled)
+        else ("[OK] ACTIVE" if dev_engine.is_enabled else "[!] DISABLED")
+    )
+
     lines = [
         "APPLICATION SUBSYSTEM STATUS",
         "==================================================",
@@ -103,7 +113,7 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         "  Terminal UI & CLI (Step 02) : [OK] ACTIVE",
         f"  Local AI Engine (Step 03)   : {ai_step_str}",
         f"  Ghost Persona (Step 04)     : {ghost_status_str}",
-        "  Developer Intel (Step 05)   : [..] NOT IMPLEMENTED",
+        f"  Developer Intel (Step 05)   : {dev_status_str}",
         "  Command Guardian (Step 06)  : [..] NOT IMPLEMENTED",
         "  Persistent Memory (Step 07) : [..] NOT IMPLEMENTED",
         "  System Diagnostics (Step 08): [..] NOT IMPLEMENTED",
@@ -391,6 +401,186 @@ def handle_ai(args: list[str], context: CommandContext) -> CommandResult:
     )
 
 
+def handle_dev(args: list[str], context: CommandContext) -> CommandResult:
+    """Developer intelligence, code analysis, debugging, and code review."""
+    ai_engine = context.ai_engine
+    if ai_engine is None:
+        from ghosttrace.ai.engine import AIEngine
+
+        ai_engine = AIEngine(context.settings)
+
+    dev_engine = context.dev_engine
+    if dev_engine is None:
+        dev_engine = ai_engine.developer_engine
+
+    subcommand = args[0].lower() if args else "summary"
+    sub_args = args[1:]
+    content_arg = " ".join(sub_args).strip()
+
+    if subcommand in ("help", "--help", "-h"):
+        from ghosttrace.developer.responses import format_developer_help
+
+        return CommandResult(success=True, output=format_developer_help())
+
+    if subcommand in ("summary", "status") and not sub_args:
+        lines = [
+            "DEVELOPER ASSISTANT SUBSYSTEM",
+            "==================================================",
+            f"  Status          : {'ACTIVE' if dev_engine.is_enabled else 'DISABLED'}",
+            (
+                f"  Static Analysis : "
+                f"{'ENABLED' if dev_engine._static_analysis_enabled else 'DISABLED'}"
+            ),
+            f"  Max Code Chars  : {dev_engine._max_code_chars}",
+            f"  Max Context     : {dev_engine._max_context_chars}",
+            "--------------------------------------------------",
+            "  Available Workflows:",
+            "    dev explain <code>   - Step-by-step logic and edge cases",
+            "    dev debug <err/code> - Root cause analysis and minimal fix",
+            "    dev review <code>    - Severity-rated code review",
+            "    dev generate <spec>  - Idiomatic code generation",
+            "    dev refactor <code>  - Modernization and simplification",
+            "    dev tests <code>     - Pytest / unit test generation",
+            "    dev language [hint]  - Language detection and info",
+            "    dev analyze <code>   - Safe local static analysis (instant)",
+            "==================================================",
+            "Type 'dev help' for comprehensive instructions.",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "enable":
+        dev_engine.enable()
+        return CommandResult(success=True, output="Developer intelligence subsystem enabled.")
+
+    if subcommand == "disable":
+        dev_engine.disable()
+        return CommandResult(success=True, output="Developer intelligence subsystem disabled.")
+
+    if subcommand == "language":
+        from ghosttrace.developer.languages import (
+            detect_language,
+            list_supported_languages,
+        )
+
+        if not content_arg:
+            supported = list_supported_languages()
+            names = ", ".join(f"{lang.name} ({lang.test_framework})" for lang in supported)
+            return CommandResult(
+                success=True,
+                output=(
+                    "SUPPORTED PROGRAMMING LANGUAGES:\n"
+                    "==================================================\n"
+                    f"{names}\n"
+                    "==================================================\n"
+                    "Usage: dev language <code_snippet_or_name>"
+                ),
+            )
+        detected = detect_language(code=content_arg, query=content_arg, hint=content_arg)
+        if detected:
+            return CommandResult(
+                success=True,
+                output=(
+                    f"DETECTED LANGUAGE: {detected.name} ({detected.id})\n"
+                    f"• Default Test Framework : {detected.test_framework}\n"
+                    f"• Comment Syntax         : {detected.comment_syntax}\n"
+                    f"• File Extensions        : {', '.join(detected.extensions)}"
+                ),
+            )
+        return CommandResult(
+            success=True,
+            output=(
+                f"Could not identify language for: '{content_arg}'. "
+                "Supported: python, js, ts, java, c, cpp, cs, go, rust, php, html, css, sql, "
+                "bash, powershell."
+            ),
+        )
+
+    if subcommand == "analyze":
+        if not content_arg:
+            return CommandResult(
+                success=False,
+                output=(
+                    "Usage: dev analyze <code_snippet>\n"
+                    "Runs safe local static analysis (AST parsing, functions, classes, imports) "
+                    "without executing code."
+                ),
+            )
+        report = dev_engine.format_static_analysis_report(content_arg)
+        return CommandResult(success=True, output=report)
+
+    # Workflow commands that dispatch to AI model:
+    # explain, debug, review, generate, refactor, tests
+    from ghosttrace.developer.schemas import DeveloperIntent
+
+    intent_map = {
+        "explain": DeveloperIntent.EXPLAIN_CODE,
+        "debug": DeveloperIntent.DEBUG_CODE,
+        "review": DeveloperIntent.REVIEW_CODE,
+        "generate": DeveloperIntent.GENERATE_CODE,
+        "refactor": DeveloperIntent.REFACTOR_CODE,
+        "tests": DeveloperIntent.GENERATE_TESTS,
+        "test": DeveloperIntent.GENERATE_TESTS,
+        "optimize": DeveloperIntent.OPTIMIZE_CODE,
+    }
+
+    if subcommand in intent_map:
+        target_intent = intent_map[subcommand]
+        if not content_arg:
+            return CommandResult(
+                success=False,
+                output=f"Usage: dev {subcommand} <code_snippet_or_requirements>",
+            )
+
+        status = ai_engine.get_status()
+        if not status.runtime_available:
+            return CommandResult(
+                success=False,
+                output=ai_engine.format_missing_runtime_message(),
+            )
+        if not status.model_exists:
+            return CommandResult(
+                success=False,
+                output=ai_engine.format_missing_model_message(),
+            )
+
+        ctx, dev_instructions = dev_engine.prepare_developer_prompt(
+            query=content_arg,
+            intent_override=target_intent,
+        )
+
+        try:
+            composed = ai_engine.ghost_engine.compose_system_prompt(
+                user_query=content_arg,
+                developer_instructions=dev_instructions,
+            )
+            ai_engine.conversation.update_system_prompt(composed)
+            ai_engine.conversation.add_user_message(content_arg)
+            messages = ai_engine.conversation.get_messages_for_llm()
+            model = ai_engine.model_manager.load_model()
+            res = ai_engine.inference_engine.generate(model, messages)
+            ai_engine.conversation.add_assistant_message(res.text)
+
+            from ghosttrace.developer.responses import format_task_headline
+
+            headline = format_task_headline(target_intent, ctx.detected_language)
+            output_text = f"[{headline}]\n\n{res.text}"
+            return CommandResult(success=True, output=output_text)
+        except Exception as exc:
+            return CommandResult(
+                success=False,
+                output=f"Developer task failed during inference: {exc}",
+            )
+
+    return CommandResult(
+        success=False,
+        output=(
+            f"Unknown dev subcommand '{subcommand}'. "
+            "Available: dev, dev help, dev explain, dev debug, dev review, "
+            "dev generate, dev refactor, dev tests, dev language, dev analyze"
+        ),
+    )
+
+
 def create_default_registry() -> CommandRegistry:
     """Create and populate a CommandRegistry with all standard GhostTrace commands."""
     registry = CommandRegistry()
@@ -454,6 +644,14 @@ def create_default_registry() -> CommandRegistry:
             description="Display and configure ghost persona identities, mood, and traits.",
             usage="ghost [status|profiles|set <profile>|traits|reset]",
             handler=handle_ghost,
+        )
+    )
+    registry.register(
+        Command(
+            name="dev",
+            description="Developer intelligence, code analysis, debugging, and code review.",
+            usage="dev [help|explain|debug|review|generate|refactor|tests|language|analyze]",
+            handler=handle_dev,
         )
     )
     registry.register(

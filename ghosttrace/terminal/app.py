@@ -14,6 +14,7 @@ from textual.widgets import Footer, Input, Static
 
 from ghosttrace.ai.engine import AIEngine
 from ghosttrace.config.settings import Settings, get_settings
+from ghosttrace.developer.engine import DeveloperEngine
 from ghosttrace.ghost.engine import GhostEngine
 from ghosttrace.terminal.command_parser import parse_command_line
 from ghosttrace.terminal.command_registry import CommandContext, CommandRegistry
@@ -82,6 +83,7 @@ class GhostTraceApp(App[int]):
         registry: CommandRegistry | None = None,
         ai_engine: AIEngine | None = None,
         ghost_engine: GhostEngine | None = None,
+        dev_engine: DeveloperEngine | None = None,
         **kwargs: object,
     ) -> None:
         super().__init__(**kwargs)
@@ -99,12 +101,28 @@ class GhostTraceApp(App[int]):
         else:
             self.ghost_engine = GhostEngine(self.settings)
 
-        self.ai_engine = ai_engine or AIEngine(self.settings, ghost_engine=self.ghost_engine)
+        if dev_engine is not None:
+            self.dev_engine = dev_engine
+        elif (
+            ai_engine is not None
+            and getattr(ai_engine, "developer_engine", None) is not None
+            and isinstance(ai_engine.developer_engine, DeveloperEngine)
+        ):
+            self.dev_engine = ai_engine.developer_engine
+        else:
+            self.dev_engine = DeveloperEngine(self.settings, ghost_engine=self.ghost_engine)
+
+        self.ai_engine = ai_engine or AIEngine(
+            self.settings,
+            ghost_engine=self.ghost_engine,
+            developer_engine=self.dev_engine,
+        )
         self.context = CommandContext(
             settings=self.settings,
             history=self.history,
             ai_engine=self.ai_engine,
             ghost_engine=self.ghost_engine,
+            dev_engine=self.dev_engine,
         )
         self.is_generating = False
 
@@ -156,7 +174,7 @@ class GhostTraceApp(App[int]):
                 status_panel.update_ai_status("STANDBY")
 
             # Update Ghost persona and mood telemetry
-            if self.ghost_engine is not None:
+            if self.ghost_engine is not None and isinstance(self.ghost_engine, GhostEngine):
                 header.update_ghost_status(
                     profile_name=self.ghost_engine.active_profile.name,
                     mood_name=self.ghost_engine.current_mood.value,
@@ -166,6 +184,13 @@ class GhostTraceApp(App[int]):
                     profile=self.ghost_engine.active_profile.name,
                     mood=self.ghost_engine.current_mood.value,
                     is_active=self.ghost_engine.is_enabled,
+                )
+
+            # Update Developer Assistant telemetry
+            if self.dev_engine is not None and isinstance(self.dev_engine, DeveloperEngine):
+                status_panel.update_dev_status(
+                    is_active=self.dev_engine.is_enabled,
+                    static_analysis=self.dev_engine._static_analysis_enabled,
                 )
         except Exception as exc:
             logger.debug("Could not refresh subsystem status: %s", exc)

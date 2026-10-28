@@ -124,13 +124,20 @@ class GhostEngine:
         self,
         context: InteractionContext | None = None,
         user_query: str | None = None,
+        developer_instructions: str | None = None,
     ) -> str:
         """Compose the appropriate system prompt for the next AI turn.
 
-        If personality is disabled, returns the neutral DEVELOPER_SYSTEM_PROMPT.
-        Otherwise, builds a multi-layered prompt incorporating persona, traits, and context.
+        If personality is disabled, returns neutral base prompt (with developer instructions
+        if present). Otherwise, builds a multi-layered prompt incorporating persona, traits,
+        context, and developer task directives.
         """
         if not self._enabled:
+            if developer_instructions:
+                return (
+                    f"{DEVELOPER_SYSTEM_PROMPT.strip()}\n\n"
+                    f"=== DEVELOPER TASK INSTRUCTIONS ===\n{developer_instructions.strip()}"
+                )
             return DEVELOPER_SYSTEM_PROMPT
 
         if context is None:
@@ -144,6 +151,7 @@ class GhostEngine:
             traits=self._traits,
             context=context,
             base_prompt=DEVELOPER_SYSTEM_PROMPT,
+            developer_instructions=developer_instructions,
         )
 
     def get_status(self) -> PersonalityStatus:

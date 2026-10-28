@@ -37,6 +37,8 @@ class StatusPanel(Widget):
         self._ghost_profile_text = "Forgotten Machine"
         self._ghost_mood_text = "DORMANT"
         self._ghost_enabled = True
+        self._dev_enabled = True
+        self._dev_static_analysis = True
 
     def compose(self) -> ComposeResult:
         yield Static("SYSTEM TELEMETRY", id="status-title")
@@ -71,6 +73,16 @@ class StatusPanel(Widget):
         except Exception:
             pass
 
+    def update_dev_status(self, is_active: bool = True, static_analysis: bool = True) -> None:
+        """Update developer assistant subsystem telemetry."""
+        self._dev_enabled = is_active
+        self._dev_static_analysis = static_analysis
+        try:
+            body = self.query_one("#status-body", Static)
+            body.update(self._build_content())
+        except Exception:
+            pass
+
     def _build_content(self) -> str:
         ai_color = "#33ff33" if self._ai_status_text in ("READY", "LOADED") else "#ffaa00"
         if self._ai_status_text in ("OFFLINE", "MISSING", "RUNTIME MISSING"):
@@ -81,6 +93,13 @@ class StatusPanel(Widget):
             f"{self._ghost_profile_text} ({self._ghost_mood_text.upper()})"
             if self._ghost_enabled
             else "DISABLED"
+        )
+
+        dev_color = "#33ff33" if self._dev_enabled else "#888888"
+        dev_text = (
+            "ACTIVE (ANALYSIS ON)"
+            if (self._dev_enabled and self._dev_static_analysis)
+            else ("ACTIVE" if self._dev_enabled else "DISABLED")
         )
 
         return (
@@ -94,6 +113,7 @@ class StatusPanel(Widget):
             " • Interface : [bold #33ff33]ACTIVE[/]\n"
             f" • AI Engine : [bold {ai_color}]{self._ai_status_text}[/]\n"
             f" • Persona   : [bold {ghost_color}]{ghost_text}[/]\n"
+            f" • Dev Intel : [bold {dev_color}]{dev_text}[/]\n"
             " • Guardian  : [dim #667766]STEP 06[/]\n"
             " • Memory    : [dim #667766]STEP 07[/]\n"
         )

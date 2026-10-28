@@ -107,7 +107,7 @@ def test_ghost_command_unknown_subcommand(sample_context):
 
 def test_step_04_status_and_about_commands(sample_context):
     about_res = handle_about([], sample_context)
-    assert "Step 04 / 10 — Ghost Personality & Behaviour Engine" in str(about_res.output)
+    assert "Step 05 / 10 — Developer Intelligence & Coding Assistance" in str(about_res.output)
 
     status_res = handle_status([], sample_context)
     assert "Ghost Persona (Step 04)     : [OK] ACTIVE" in str(status_res.output)

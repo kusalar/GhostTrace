@@ -15,6 +15,7 @@ from ghosttrace.terminal.history import SessionHistory
 
 if TYPE_CHECKING:
     from ghosttrace.ai.engine import AIEngine
+    from ghosttrace.developer.engine import DeveloperEngine
     from ghosttrace.ghost.engine import GhostEngine
 
 logger = logging.getLogger("ghosttrace.terminal.commands")
@@ -28,6 +29,7 @@ class CommandContext:
     history: SessionHistory
     ai_engine: AIEngine | None = None
     ghost_engine: GhostEngine | None = None
+    dev_engine: DeveloperEngine | None = None
 
 
 @dataclass

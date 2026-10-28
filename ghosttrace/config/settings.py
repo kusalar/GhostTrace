@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Application Metadata
     app_name: str = "GhostTrace"
-    app_version: str = "0.4.0"
+    app_version: str = "0.5.0"
     app_description: str = "Offline-first AI-powered haunted terminal companion."
 
     # Environment & Execution Mode
@@ -119,6 +119,24 @@ class Settings(BaseSettings):
     ghost_mood_enabled: bool = Field(
         default=True,
         description="Enable session mood tracking and contextual transitions.",
+    )
+
+    # Developer Intelligence & Coding Assistance (Step 05)
+    dev_enabled: bool = Field(
+        default=True,
+        description="Enable developer intelligence and coding assistance subsystem.",
+    )
+    dev_static_analysis: bool = Field(
+        default=True,
+        description="Enable safe local static analysis on explicitly supplied code snippets.",
+    )
+    dev_max_code_chars: int = Field(
+        default=20000,
+        description="Maximum character length allowed for user-supplied code snippets.",
+    )
+    dev_max_context_chars: int = Field(
+        default=30000,
+        description="Maximum character length for total developer task context.",
     )
 
     model_config = SettingsConfigDict(
@@ -225,6 +243,22 @@ class Settings(BaseSettings):
     def validate_ai_history_limit(cls, value: int) -> int:
         if not (1 <= value <= 100):
             msg = f"Invalid ai_history_limit {value}. Must be between 1 and 100."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("dev_max_code_chars")
+    @classmethod
+    def validate_dev_max_code_chars(cls, value: int) -> int:
+        if not (100 <= value <= 1_000_000):
+            msg = f"Invalid dev_max_code_chars {value}. Must be between 100 and 1,000,000."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("dev_max_context_chars")
+    @classmethod
+    def validate_dev_max_context_chars(cls, value: int) -> int:
+        if not (100 <= value <= 1_000_000):
+            msg = f"Invalid dev_max_context_chars {value}. Must be between 100 and 1,000,000."
             raise ValueError(msg)
         return value
 

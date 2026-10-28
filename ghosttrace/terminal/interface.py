@@ -80,10 +80,10 @@ def render_cli_status(settings: Settings | None = None) -> None:
     subsystem_table.add_row("01", "Foundation & Configuration", "[bold #00ff66]IMPLEMENTED[/]")
     subsystem_table.add_row("02", "Interactive Terminal & CLI", "[bold #00ff66]ACTIVE[/]")
     subsystem_table.add_row("03", "Local AI Integration (llama.cpp)", ai_state_badge)
-    subsystem_table.add_row("04", "Ghost Persona & Behaviour Engine", "[bold #00ff66]ACTIVE[/]")
     subsystem_table.add_row(
-        "05", "Developer Intel & Coding Assist", "[dim #778877]NOT IMPLEMENTED[/]"
+        "04", "Ghost Persona & Behaviour Engine", "[bold #00ff66]IMPLEMENTED[/]"
     )
+    subsystem_table.add_row("05", "Developer Intel & Coding Assist", "[bold #00ff66]ACTIVE[/]")
     subsystem_table.add_row("06", "Command Guardian & Safety", "[dim #778877]NOT IMPLEMENTED[/]")
     subsystem_table.add_row("07", "Persistent Memory & SQLite", "[dim #778877]NOT IMPLEMENTED[/]")
     subsystem_table.add_row(
