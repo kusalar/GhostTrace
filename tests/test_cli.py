@@ -12,11 +12,11 @@ def test_cli_version() -> None:
     """Verify --version and -v return version string and code 0."""
     res1 = runner.invoke(app, ["--version"])
     assert res1.exit_code == 0
-    assert "GhostTrace v0.9.0" in res1.stdout
+    assert "GhostTrace v1.0.0" in res1.stdout
 
     res2 = runner.invoke(app, ["-v"])
     assert res2.exit_code == 0
-    assert "GhostTrace v0.9.0" in res2.stdout
+    assert "GhostTrace v1.0.0" in res2.stdout
 
 
 def test_cli_help() -> None:

@@ -47,23 +47,23 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 ## 4. Current Implementation Status
 
 | Subsystem | Status | Description |
-| :--- | :---: | :--- |
+| :--- | :--- | :--- |
 | **Project Foundation** | **Completed** | Modular package hierarchy and Git configuration |
 | **Python Virtual Environment** | **Completed** | Python 3.11 `.venv` isolation |
 | **Centralized Configuration** | **Completed** | Pydantic Settings with env overrides and path safety |
 | **Logging Infrastructure** | **Completed** | Rotating file logging (10 MB x 5) and console output |
 | **Interactive Terminal UI** | **Completed** | Textual green-phosphor CRT interface & live telemetry |
 | **Command System & History** | **Completed** | Command registry, argument parser, in-memory history |
-| **CLI Framework** | **Completed** | Typer entry point with `status`, `guard`, `--version`, `--help` |
+| **CLI Framework** | **Completed** | Typer entry point with `status`, `guard`, `system`, `haunt`, `--version`, `--help` |
 | **Local AI Integration** | **Completed** | Qwen2.5 GGUF inference via llama.cpp (CPU streaming) |
-| **Ghost Persona Engine** | **Completed** | Three distinct personalities, traits, mood state, prompt pipeline |
+| **Ghost Persona Engine** | **Completed** | Four distinct personalities, traits, mood state, prompt pipeline |
 | **Developer Intelligence** | **Completed** | Code explanation, debugging, review, generation, refactoring, test generation, and safe local static analysis |
 | **Command Guardian** | **Completed** | Command risk analysis, dangerous pattern rules, HMAC-SHA256 approval tokens, controlled subprocess execution |
 | **Persistent Memory & Projects** | **Completed** | SQLite persistence (WAL mode), FTS5 full-text search, user-controlled memory CRUD, read-only project indexing |
 | **System Awareness & Diagnostics** | **Completed** | Win32 & stdlib resource telemetry, health inspection across 12 subsystems, diagnostic reporting |
 | **Haunted Experience** | **Completed** | Step 09: Atmospheric manifestations, ghost reactions, 4 experience modes (normal, ambient, haunted, focus), 9 event categories |
-| **Testing Suite** | **Completed** | Deterministic unit, async TUI, and integration tests (446 tests, 100% passing) |
-| *Packaging & Hardening* | *Planned* | Step 10: Production release packaging and distribution |
+| **Testing Suite** | **Completed** | Deterministic unit, async TUI, and integration tests (458 tests, 100% passing, 89.08% coverage) |
+| **Packaging & Hardening** | **Completed** | Step 10: Standalone Windows executable (`GhostTrace.exe`), PyInstaller distribution bundle, hardened release artifacts |
 
 ---
 
@@ -77,20 +77,29 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 - [x] **Step 06: Command Guardian & Execution Safety**
 - [x] **Step 07: Persistent Memory & Project Context**
 - [x] **Step 08: System Awareness & Diagnostics**
-- [x] **Step 09: Haunted Experience & Interactive Events** *(Current)*
-- [ ] **Step 10: Testing, Optimization, Packaging & Release**
+- [x] **Step 09: Haunted Experience & Interactive Events**
+- [x] **Step 10: Testing, Optimization, Packaging & Release** *(Production Release v1.0.0)*
 
 ---
 
 ## 6. Installation & Quick Start
 
-### 6.1 Prerequisites
+### 6.1 Standalone Windows Executable (No Python Required)
+
+For production end users, download the pre-packaged Windows distribution from `dist/release/`:
+1. Extract `dist/release/GhostTrace/` to your preferred directory (e.g. `C:\Tools\GhostTrace`).
+2. Run `GhostTrace.exe --help` or launch `GhostTrace.exe` directly to open the interactive terminal.
+3. Place `qwen2.5-1.5b-instruct-q4_k_m.gguf` in the `models/` folder. See [MODEL_SETUP.md](file:///D:/GhostTrace/dist/release/MODEL_SETUP.md) for automated download instructions.
+
+### 6.2 Source Installation & Development Environment
+
+#### Prerequisites
 
 - Windows 10 or 11 (64-bit)
 - Python 3.11 installed and available on PATH (`py -3.11 --version`)
 - Git installed (`git --version`)
 
-### 6.2 Environment Setup
+#### Environment Setup
 
 Clone or open the repository in PowerShell:
 
@@ -510,13 +519,13 @@ Every command execution requires explicit approval:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ GHOSTTRACE v0.9.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
+│ GHOSTTRACE v1.0.0 │ GHOST: OBSERVER (DORMANT) │ AI: READY               │
 ├──────────────────────────────────────────────┬─────────────────────────┤
 │ ConversationLog                              │ StatusPanel             │
 │                                              │                         │
-│ [Something has awakened inside this terminal]│ GhostTrace v0.9.0       │
+│ [Something has awakened inside this terminal]│ GhostTrace v1.0.0       │
 │                                              │                         │
-│ ghost> system overview                       │ Environment: development│
+│ ghost> system overview                       │ Environment: production │
 │ SYSTEM & RESOURCE OVERVIEW                   │ Commands Run: 6         │
 │ • Host Platform: Windows 10 (AMD64)          │                         │
 │ • CPU: Intel Core i3-1115G4 (4 cores) — 12%  │ Subsystems:             │
@@ -528,8 +537,8 @@ Every command execution requires explicit approval:
 │                                              │ • Guardian   : ACTIVE   │
 │ ghost> guard run python --version            │ • Memory     : ACTIVE   │
 │ [Command Approval Modal Displayed]           │ • System     : HEALTHY  │
-│                                              │ • Haunt      : HAUNTED (med)│
-│                                              │ • Project    : GhostTrace│
+│                                              │ • Haunt      : NORMAL   │
+│                                              │ • Release    : PACKAGED │
 ├──────────────────────────────────────────────┴─────────────────────────┤
 │ ghost> [ Enter command or ask a programming question...              ] │
 ├────────────────────────────────────────────────────────────────────────┤

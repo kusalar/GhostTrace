@@ -10,13 +10,14 @@ from rich.table import Table
 
 from ghosttrace.config.settings import Settings, get_settings
 from ghosttrace.core.logging import setup_logging
-from ghosttrace.terminal.app import GhostTraceApp
 
 logger = logging.getLogger("ghosttrace.terminal.interface")
 
 
 def run_terminal_app(settings: Settings | None = None) -> int:
     """Launch the interactive Textual terminal application."""
+    from ghosttrace.terminal.app import GhostTraceApp
+
     if settings is None:
         settings = get_settings()
 
@@ -105,7 +106,7 @@ def render_cli_status(settings: Settings | None = None) -> None:
         "[bold #00ff66]ACTIVE[/]" if settings.haunt_enabled else "[dim #ff5555]DISABLED[/]",
     )
     subsystem_table.add_row(
-        "10", "Packaging, Hardening & Release", "[dim #778877]NOT IMPLEMENTED[/]"
+        "10", "Packaging, Hardening & Release", "[bold #00ff66]PRODUCTION READY[/]"
     )
 
     console.print(subsystem_table)

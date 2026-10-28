@@ -161,7 +161,7 @@ def test_handle_dev_unknown_subcommand(test_settings: Settings) -> None:
 def test_handle_status_and_about_step05(test_settings: Settings) -> None:
     ctx = create_mock_context(test_settings)
     about_res = handle_about([], ctx)
-    assert "Step 09 / 10 — Haunted Experience & Interactive Events" in str(about_res.output)
+    assert "Step 10 / 10 — Final Release & Packaging (Complete)" in str(about_res.output)
 
     status_res = handle_status([], ctx)
     assert "Developer Intel (Step 05)   : [OK] ACTIVE" in str(status_res.output)

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Application Metadata
     app_name: str = "GhostTrace"
-    app_version: str = "0.9.0"
+    app_version: str = "1.0.0"
     app_description: str = "Offline-first AI-powered haunted terminal companion."
 
     # Environment & Execution Mode

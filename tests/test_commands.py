@@ -124,7 +124,7 @@ def test_builtin_commands() -> None:
     # 2. about
     about_res = registry.execute("about", ctx)
     assert about_res.success is True
-    assert "GHOSTTRACE v0.9.0" in str(about_res.output)
+    assert "GHOSTTRACE v1.0.0" in str(about_res.output)
     assert "Developer Assistant" in str(about_res.output)
 
     # 3. status
@@ -138,11 +138,12 @@ def test_builtin_commands() -> None:
     assert "Persistent Memory (Step 07)" in str(status_res.output)
     assert "System Diagnostics (Step 08)" in str(status_res.output)
     assert "Haunted Events (Step 09)" in str(status_res.output)
+    assert "Release Packaging (Step 10)" in str(status_res.output)
 
     # 4. version
     version_res = registry.execute("version", ctx)
     assert version_res.success is True
-    assert "GhostTrace v0.9.0" in str(version_res.output)
+    assert "GhostTrace v1.0.0" in str(version_res.output)
 
     # 5. clear
     clear_res = registry.execute("clear", ctx)

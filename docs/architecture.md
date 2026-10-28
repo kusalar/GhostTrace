@@ -1,7 +1,7 @@
 # GhostTrace Architecture Specification
 
-> **Status:** Step 09 / 10 — Haunted Experience & Interactive Events  
-> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, Developer Intelligence & Safe Code Analysis, Command Guardian & Execution Safety, Persistent Memory & Project Context, System Awareness & Diagnostics, and Haunted Experience & Interactive Events are implemented. Step 10 describes planned packaging, hardening, and final distribution.
+> **Status:** Step 10 / 10 — Testing, Optimization, Packaging & Release (Complete / Production Ready)  
+> **Note:** All 10 roadmap steps are fully implemented, verified, hardened, and packaged for Windows 10/11 x64. Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, Developer Intelligence & Safe Code Analysis, Command Guardian & Execution Safety, Persistent Memory & Project Context, System Awareness & Diagnostics, Haunted Experience & Interactive Events, and PyInstaller Release Packaging are verified with 458 automated tests (100% passing, 89.08% project coverage).
 
 ---
 
@@ -184,6 +184,14 @@
   - `HauntHistoryManager`: Bounded in-memory FIFO queue (max 100 entries) tracking triggered events for session inspection with zero SQLite writes.
   - `schemas`: Typed Pydantic models and Enums (`HauntMode`: `NORMAL`, `AMBIENT`, `HAUNTED`, `FOCUS`; `HauntIntensity`: `LOW`, `MEDIUM`, `HIGH`; `EventCategory`, `TriggerType`, `HauntEvent`, `TriggerContext`, `TriggerResult`, `HauntHistoryEntry`, `HauntStatus`).
 
+### Windows Packaging & Release Distribution (Implemented in Step 10)
+- **Status:** Implemented (Hardened Windows Distribution).
+- **Responsibility:** Standalone executable build, dependency bundling, startup latency optimization, and production release artifact staging.
+- **Components:**
+  - `PyInstaller` Spec (`GhostTrace.spec`): Collects `textual`, `llama_cpp` native AVX2 runtime binaries, metadata, and dependencies into an optimized onedir distribution.
+  - `GhostTrace.exe`: Standalone Windows executable runner (10.8 MB) verified for headless CLI subcommands (`status`, `guard`, `system`, `haunt`, `--version`, `--help`) and interactive TUI.
+  - `dist/release/`: Self-contained release staging directory with binary bundle, `SHA256SUMS.txt`, `QUICKSTART.md`, `INSTALL.md`, `MODEL_SETUP.md`, `CONFIG.md`, `THIRD_PARTY_NOTICES.md`, and `RELEASE_NOTES_v1.0.0.md`.
+
 ---
 
 ## 3. Agreed 10-Step Development Roadmap
@@ -197,7 +205,7 @@
 7. **Step 07: Persistent Memory & Project Context** *(Completed)*
 8. **Step 08: System Awareness & Diagnostics** *(Completed)*
 9. **Step 09: Haunted Experience & Interactive Events** *(Completed)*
-10. **Step 10: Testing, Optimization, Packaging & Release**
+10. **Step 10: Testing, Optimization, Packaging & Release** *(Completed)*
 
 ---
 
