@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Application Metadata
     app_name: str = "GhostTrace"
-    app_version: str = "0.2.0"
+    app_version: str = "0.3.0"
     app_description: str = "Offline-first AI-powered haunted terminal companion."
 
     # Environment & Execution Mode
@@ -60,6 +60,51 @@ class Settings(BaseSettings):
         description="Directory for rotating log files. Defaults to {app_data_dir}/logs.",
     )
 
+    # Local AI Configuration (Step 03)
+    model_path: Path | None = Field(
+        default=None,
+        description=(
+            "Path to local GGUF model weights file. "
+            "Defaults to {model_dir}/qwen2.5-1.5b-instruct-q4_k_m.gguf."
+        ),
+    )
+    ai_enabled: bool = Field(
+        default=True,
+        description="Enable or disable local AI model inference.",
+    )
+    ai_context_size: int = Field(
+        default=2048,
+        description="Context window length in tokens for local model.",
+    )
+    ai_max_tokens: int = Field(
+        default=512,
+        description="Maximum tokens to generate per completion.",
+    )
+    ai_temperature: float = Field(
+        default=0.7,
+        description="Sampling temperature for text generation.",
+    )
+    ai_top_p: float = Field(
+        default=0.9,
+        description="Top-p nucleus sampling probability.",
+    )
+    ai_threads: int = Field(
+        default=2,
+        description="Number of CPU threads to allocate for inference.",
+    )
+    ai_gpu_layers: int = Field(
+        default=0,
+        description="Number of layers to offload to GPU (0 for CPU-only).",
+    )
+    ai_batch_size: int = Field(
+        default=128,
+        description="Batch size for prompt evaluation in tokens.",
+    )
+    ai_history_limit: int = Field(
+        default=10,
+        description="Maximum number of conversation exchanges retained in memory.",
+    )
+
     model_config = SettingsConfigDict(
         env_prefix="GHOSTTRACE_",
         env_file=".env",
@@ -91,12 +136,82 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         return str(value)
 
+    @field_validator("ai_context_size")
+    @classmethod
+    def validate_ai_context_size(cls, value: int) -> int:
+        if not (256 <= value <= 32768):
+            msg = f"Invalid ai_context_size {value}. Must be between 256 and 32768."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("ai_max_tokens")
+    @classmethod
+    def validate_ai_max_tokens(cls, value: int) -> int:
+        if not (1 <= value <= 4096):
+            msg = f"Invalid ai_max_tokens {value}. Must be between 1 and 4096."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("ai_temperature")
+    @classmethod
+    def validate_ai_temperature(cls, value: float) -> float:
+        if not (0.0 <= value <= 2.0):
+            msg = f"Invalid ai_temperature {value}. Must be between 0.0 and 2.0."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("ai_top_p")
+    @classmethod
+    def validate_ai_top_p(cls, value: float) -> float:
+        if not (0.0 < value <= 1.0):
+            msg = f"Invalid ai_top_p {value}. Must be between 0.0 (exclusive) and 1.0."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("ai_threads")
+    @classmethod
+    def validate_ai_threads(cls, value: int) -> int:
+        if not (1 <= value <= 32):
+            msg = f"Invalid ai_threads {value}. Must be between 1 and 32."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("ai_gpu_layers")
+    @classmethod
+    def validate_ai_gpu_layers(cls, value: int) -> int:
+        if value < 0:
+            msg = f"Invalid ai_gpu_layers {value}. Must be non-negative."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("ai_batch_size")
+    @classmethod
+    def validate_ai_batch_size(cls, value: int) -> int:
+        if not (1 <= value <= 2048):
+            msg = f"Invalid ai_batch_size {value}. Must be between 1 and 2048."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("ai_history_limit")
+    @classmethod
+    def validate_ai_history_limit(cls, value: int) -> int:
+        if not (1 <= value <= 100):
+            msg = f"Invalid ai_history_limit {value}. Must be between 1 and 100."
+            raise ValueError(msg)
+        return value
+
     def model_post_init(self, __context: object) -> None:
         """Resolve computed directories and debug-level adjustments."""
         super().model_post_init(__context)
         # Convert path strings or relative paths to resolved Path instances
         object.__setattr__(self, "app_data_dir", Path(self.app_data_dir).resolve())
         object.__setattr__(self, "model_dir", Path(self.model_dir).resolve())
+
+        if self.model_path is not None:
+            object.__setattr__(self, "model_path", Path(self.model_path).resolve())
+        else:
+            default_model = (self.model_dir / "qwen2.5-1.5b-instruct-q4_k_m.gguf").resolve()
+            object.__setattr__(self, "model_path", default_model)
 
         resolved_db_dir = (
             Path(self.db_dir).resolve()

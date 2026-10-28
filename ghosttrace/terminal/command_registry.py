@@ -5,12 +5,16 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from rich.console import RenderableType
 
 from ghosttrace.config.settings import Settings
 from ghosttrace.terminal.command_parser import parse_command_line
 from ghosttrace.terminal.history import SessionHistory
+
+if TYPE_CHECKING:
+    from ghosttrace.ai.engine import AIEngine
 
 logger = logging.getLogger("ghosttrace.terminal.commands")
 
@@ -21,6 +25,7 @@ class CommandContext:
 
     settings: Settings
     history: SessionHistory
+    ai_engine: AIEngine | None = None
 
 
 @dataclass
@@ -50,9 +55,13 @@ class Command:
 class CommandRegistry:
     """Registry managing available commands, alias resolution, and execution routing."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        fallback_handler: Callable[[str, CommandContext], CommandResult] | None = None,
+    ) -> None:
         self._commands: dict[str, Command] = {}
         self._alias_map: dict[str, str] = {}
+        self.fallback_handler = fallback_handler
 
     def register(self, command: Command) -> None:
         """Register a command and its aliases."""
@@ -89,6 +98,24 @@ class CommandRegistry:
 
         command = self.get(parsed.name)
         if command is None:
+            if self.fallback_handler is not None:
+                return self.fallback_handler(parsed.raw, context)
+
+            if context.ai_engine is not None and getattr(context.settings, "ai_enabled", True):
+                try:
+                    result = context.ai_engine.ask(parsed.raw)
+                    return CommandResult(
+                        success=True,
+                        output=f"GHOSTTRACE:\n{result.text}",
+                        command_name="ai_query",
+                    )
+                except Exception as exc:
+                    return CommandResult(
+                        success=False,
+                        output=f"AI query failed: {exc}",
+                        command_name="ai_query",
+                    )
+
             return CommandResult(
                 success=False,
                 output=f"Unknown command: '{parsed.name}'. Type 'help' to see available commands.",

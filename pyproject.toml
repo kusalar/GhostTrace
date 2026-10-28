@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ghosttrace"
-version = "0.2.0"
+version = "0.3.0"
 description = "Offline-first AI-powered haunted terminal companion."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -34,6 +34,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+ai = [
+    "llama-cpp-python>=0.2.70",
+]
 dev = [
     "pytest>=8.0.0,<9.0.0",
     "pytest-asyncio>=0.23.0,<1.0.0",

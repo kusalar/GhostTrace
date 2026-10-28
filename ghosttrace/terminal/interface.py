@@ -63,11 +63,23 @@ def render_cli_status(settings: Settings | None = None) -> None:
     subsystem_table.add_column("Subsystem", style="#ffffff", width=34)
     subsystem_table.add_column("State", style="bold", width=16)
 
+    from ghosttrace.ai.engine import AIEngine
+
+    ai_engine = AIEngine(settings)
+    ai_status = ai_engine.get_status()
+
+    if not ai_status.runtime_available:
+        ai_state_badge = "[dim #ff5555]RUNTIME MISSING[/]"
+    elif ai_status.is_loaded:
+        ai_state_badge = "[bold #00ff66]LOADED[/]"
+    elif ai_status.model_exists:
+        ai_state_badge = "[bold #00ff66]READY[/]"
+    else:
+        ai_state_badge = "[bold #33ff33]STANDBY (NO WEIGHTS)[/]"
+
     subsystem_table.add_row("01", "Foundation & Configuration", "[bold #00ff66]IMPLEMENTED[/]")
     subsystem_table.add_row("02", "Interactive Terminal & CLI", "[bold #00ff66]ACTIVE[/]")
-    subsystem_table.add_row(
-        "03", "Local AI Integration (llama.cpp)", "[dim #ff5555]NOT CONNECTED[/]"
-    )
+    subsystem_table.add_row("03", "Local AI Integration (llama.cpp)", ai_state_badge)
     subsystem_table.add_row(
         "04", "Ghost Persona & Behaviour Engine", "[dim #778877]NOT IMPLEMENTED[/]"
     )

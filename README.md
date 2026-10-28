@@ -23,9 +23,10 @@ Modern AI developer tools are overwhelmingly cloud-tethered, sending proprietary
 - **Configuration & Validation:** Pydantic 2.x & Pydantic Settings
 - **Terminal UI Engine:** Textual & Rich
 - **CLI Framework:** Typer
+- **Local AI Inference Engine:** `llama.cpp` via `llama-cpp-python` (CPU-only, low-overhead)
+- **Target Language Model:** Qwen2.5-1.5B-Instruct in GGUF format (`Q4_K_M` quantization)
 - **Testing & Quality:** pytest, pytest-cov, pytest-asyncio, Ruff
-- **Planned AI Subsystem:** Qwen2.5 Instruct GGUF executed via `llama-cpp-python` / `llama.cpp`
-- **Planned Persistence:** SQLite (WAL mode)
+- **Planned Persistence:** SQLite (WAL mode, Step 07)
 
 ---
 
@@ -54,8 +55,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 | **Interactive Terminal UI** | **Completed** | Textual green-phosphor CRT interface & live telemetry |
 | **Command System & History** | **Completed** | Command registry, argument parser, in-memory history |
 | **CLI Framework** | **Completed** | Typer entry point with `status`, `--version`, `--help` |
-| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (>98% coverage) |
-| *Local AI Integration* | *Planned* | Step 03: GGUF pipeline and local llama.cpp engine |
+| **Local AI Integration** | **Completed** | Qwen2.5 GGUF inference via llama.cpp (CPU streaming) |
+| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (>95% coverage) |
 | *Ghost Persona Engine* | *Planned* | Step 04: Atmospheric reactions and behavioral states |
 | *Developer Intelligence* | *Planned* | Step 05: Code synthesis, explanation, and error triage |
 | *Terminal Guardian* | *Planned* | Step 06: Safety interceptor and command risk classifier |
@@ -69,8 +70,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 ## 5. 10-Step Development Roadmap
 
 - [x] **Step 01: Foundation, Environment & Configuration**
-- [x] **Step 02: Interactive Terminal Interface & CLI** *(Current)*
-- [ ] **Step 03: Local AI Integration**
+- [x] **Step 02: Interactive Terminal Interface & CLI**
+- [x] **Step 03: Local AI Integration** *(Current)*
 - [ ] **Step 04: Ghost Personality & Behaviour Engine**
 - [ ] **Step 05: Developer Intelligence & Coding Assistance**
 - [ ] **Step 06: Command Guardian & Execution Safety**
@@ -111,14 +112,46 @@ py -3.11 -m venv .venv
 
 ### 6.3 Install Dependencies
 
-Install the project in editable mode with development dependencies:
+Install GhostTrace in editable mode with development dependencies:
 
 ```powershell
 pip install --upgrade pip
 pip install -e ".[dev]"
 ```
 
-### 6.4 Configuration
+### 6.4 Install llama-cpp-python (Local AI Runtime)
+
+For Windows 64-bit CPU inference (Intel Core i3, UHD graphics), install the prebuilt wheel without requiring MSVC or CMake compilation:
+
+```powershell
+pip install "https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.36/llama_cpp_python-0.3.36-py3-none-win_amd64.whl"
+```
+
+Verify that the runtime is installed:
+
+```powershell
+python -c "import llama_cpp; print('llama_cpp version:', llama_cpp.__version__)"
+```
+
+### 6.5 Download Qwen2.5 GGUF Model Weights
+
+1. Obtain the official `Qwen2.5-1.5B-Instruct` GGUF model (`Q4_K_M` quantization) from Hugging Face:
+   - Source: [Qwen/Qwen2.5-1.5B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF)
+   - File: `qwen2.5-1.5b-instruct-q4_k_m.gguf` (~986 MB)
+
+2. Place the downloaded `.gguf` file in the project's models directory:
+   ```text
+   D:\GhostTrace\models\qwen2.5-1.5b-instruct-q4_k_m.gguf
+   ```
+
+3. Alternatively, set an environment variable to point to any custom path:
+   ```powershell
+   $env:GHOSTTRACE_MODEL_PATH="D:\custom_path\qwen2.5-1.5b-instruct-q4_k_m.gguf"
+   ```
+
+*(Note: Model weights are excluded from Git via `.gitignore` and are never committed).*
+
+### 6.6 Configuration
 
 Copy the example environment file:
 
@@ -149,7 +182,7 @@ ghosttrace status
 ### 7.3 Version Information
 ```powershell
 ghosttrace --version
-# Output: GhostTrace v0.2.0
+# Output: GhostTrace v0.3.0
 ```
 
 ### 7.4 Help Information
@@ -159,32 +192,62 @@ ghosttrace --help
 
 ---
 
-## 8. Interactive Terminal Commands & Keyboard Shortcuts
+## 8. Interactive Terminal Commands & Local AI Usage
 
-Inside the interactive terminal interface, enter commands at the `ghost>` prompt:
+Inside the interactive terminal interface, enter commands or type natural language queries at the `ghost>` prompt:
+
+### Natural Language AI Queries
+
+Any input that is not a registered built-in command is automatically routed to the local AI engine:
+
+```text
+ghost> Hello, who are you?
+
+GHOSTTRACE:
+I am GhostTrace, a local-first developer assistant running entirely
+on your machine. I help with understanding programming concepts,
+debugging code, explaining terminal commands, and workflow optimization.
+```
+
+```text
+ghost> Explain what a Python decorator does.
+
+GHOSTTRACE:
+A Python decorator is a callable that takes a function as an argument,
+wraps or extends its behavior, and returns the modified function without
+altering its original implementation...
+```
 
 ### Built-in Commands
 
-| Command | Description |
-| :--- | :--- |
-| `help` (or `?`) | Displays all available commands with descriptions. Use `help <cmd>` for specific usage. |
-| `about` (or `info`) | Displays project vision, triple identity, and target specifications. |
-| `status` | Displays application status distinguishing implemented from planned features. |
-| `version` (or `v`) | Displays the GhostTrace version. |
-| `clear` (or `cls`) | Clears the scrollable conversation log. |
-| `history` (or `hist`) | Lists commands entered during the active session. |
-| `ai` | Displays AI engine status (`AI ENGINE: NOT CONNECTED`, scheduled for Step 03). |
-| `ghost` | Displays ghost subsystem status (`PERSONALITY ENGINE: NOT IMPLEMENTED`, scheduled for Step 04). |
-| `exit` (or `quit`, `q`)| Gracefully terminates the terminal session. |
+| Command | Usage | Description |
+| :--- | :--- | :--- |
+| `help` (or `?`) | `help [cmd]` | Displays available commands with descriptions and usage syntax. |
+| `ai` | `ai [status\|load\|unload\|info\|clear]` | Displays and manages the local AI inference subsystem. |
+| `about` (or `info`) | `about` | Displays project vision, triple identity, and target specifications. |
+| `status` | `status` | Displays system status distinguishing implemented from planned features. |
+| `version` (or `v`) | `version` | Displays the GhostTrace version (`v0.3.0`). |
+| `clear` (or `cls`) | `clear` | Clears the scrollable conversation log. |
+| `history` (or `hist`) | `history` | Lists commands entered during the active session. |
+| `ghost` | `ghost` | Displays ghost subsystem status (`PERSONALITY ENGINE: NOT IMPLEMENTED`). |
+| `exit` (or `quit`, `q`) | `exit` | Gracefully terminates the terminal session. |
+
+### AI Management Subcommands
+
+- `ai status` — Inspects runtime availability, model weight existence, memory state, and hardware parameters.
+- `ai load` — Explicitly loads the configured GGUF model into memory.
+- `ai unload` — Releases loaded model weights from memory and triggers garbage collection.
+- `ai info` — Displays model hyperparameters (context length, threads, sampling temperature, batch size).
+- `ai clear` — Clears in-memory conversation context while preserving the developer assistant system prompt.
 
 ### Keyboard Shortcuts
 
-- <kbd>Enter</kbd> — Submit the command in the input field.
+- <kbd>Enter</kbd> — Submit the command or AI prompt in the input field.
 - <kbd>Up Arrow</kbd> — Navigate backwards through session command history.
 - <kbd>Down Arrow</kbd> — Navigate forwards through session command history.
 - <kbd>Ctrl</kbd>+<kbd>L</kbd> — Clear the conversation buffer.
 - <kbd>Ctrl</kbd>+<kbd>C</kbd> — Gracefully exit GhostTrace.
-- <kbd>Escape</kbd> — Reset/clear current input field.
+- <kbd>Escape</kbd> — Reset current input field or interrupt generation.
 
 ---
 
@@ -192,23 +255,23 @@ Inside the interactive terminal interface, enter commands at the `ghost>` prompt
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ GHOSTTRACE v0.2.0    │  ENTITY: AWAKE  │  AI ENGINE: NOT CONNECTED     │
+│ GHOSTTRACE v0.3.0    │  ENTITY: AWAKE  │  AI ENGINE: READY / LOADED    │
 ├──────────────────────────────────────────────┬─────────────────────────┤
 │ ConversationLog                              │ StatusPanel             │
 │                                              │                         │
-│ [Something has awakened inside this terminal]│ GhostTrace v0.2.0       │
+│ [Something has awakened inside this terminal]│ GhostTrace v0.3.0       │
 │                                              │                         │
-│ ghost> help                                  │ Environment: development│
-│ +------------------------------------------+ │ Commands Run: 3         │
-│ | Command | Description                    | │                         │
-│ +------------------------------------------+ │ Subsystems:             │
-│ | help    | Show available commands        | │ • Foundation : OK       │
-│ | status  | System diagnostic status       | │ • Interface  : ACTIVE   │
-│ | exit    | Leave GhostTrace               | │ • AI Engine  : OFFLINE  │
-│ +------------------------------------------+ │ • Persona    : STEP 04  │
-│                                              │                         │
+│ ghost> Explain Python decorators             │ Environment: development│
+│ GHOSTTRACE:                                  │ Commands Run: 3         │
+│ A Python decorator is a callable that wraps  │                         │
+│ another function to extend its behavior...   │ Subsystems:             │
+│                                              │ • Foundation : OK       │
+│ ghost> help                                  │ • Interface  : ACTIVE   │
+│ +------------------------------------------+ │ • AI Engine  : READY    │
+│ | Command | Description                    | │ • Persona    : STEP 04  │
+│ +------------------------------------------+ │                         │
 ├──────────────────────────────────────────────┴─────────────────────────┤
-│ ghost> [ Enter command (e.g., 'help', 'status', 'ai', 'exit')...     ] │
+│ ghost> [ Enter command or ask a programming question...              ] │
 ├────────────────────────────────────────────────────────────────────────┤
 │ Enter: Submit  │  Ctrl+L: Clear  │  Ctrl+C: Quit  │  Esc: Cancel       │
 └────────────────────────────────────────────────────────────────────────┘

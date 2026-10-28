@@ -1,5 +1,9 @@
 """Conversation scrollable log widget for GhostTrace terminal UI."""
 
+from __future__ import annotations
+
+import uuid
+
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static
@@ -34,6 +38,10 @@ class ConversationLog(VerticalScroll):
         margin-bottom: 1;
         color: #bbddbb;
     }
+    .response-thinking {
+        margin-bottom: 1;
+        color: #88bb88;
+    }
     .response-error {
         margin-bottom: 1;
         color: #ff6666;
@@ -44,10 +52,11 @@ class ConversationLog(VerticalScroll):
         # Initial Welcome Message
         welcome_text = (
             "[bold #00ff66]Something has awakened inside this terminal.[/]\n\n"
-            "[dim #779977]GhostTrace is operating in Step 02 Interactive Terminal mode.\n"
-            "AI model inference and ghost persona are currently offline.\n"
-            "Type [bold #33ff33]'help'[/] for available commands or "
-            "[bold #33ff33]'status'[/] for diagnostics.[/]"
+            "[dim #779977]GhostTrace is operating in Step 03 Local AI Integration mode.\n"
+            "Powered by Qwen2.5 GGUF via llama.cpp (offline & private).\n"
+            "Type natural language queries to ask the local assistant, or\n"
+            "type [bold #33ff33]'help'[/] for commands or "
+            "[bold #33ff33]'ai status'[/] for model diagnostics.[/]"
         )
         yield Static(welcome_text, classes="welcome-box", id="welcome-message")
 
@@ -67,6 +76,65 @@ class ConversationLog(VerticalScroll):
             self.mount(resp_widget)
 
         # Scroll to bottom
+        self.scroll_end(animate=False)
+
+    def add_pending_ai_query(self, query: str, widget_id: str | None = None) -> str:
+        """Mount user query and initial thinking placeholder, returning widget id."""
+        target_id = widget_id or f"ai-resp-{uuid.uuid4().hex[:8]}"
+
+        cmd_widget = Static(
+            f"[bold #00ff66]ghost>[/] [bold #ffffff]{query}[/]",
+            classes="user-command-line",
+        )
+        self.mount(cmd_widget)
+
+        thinking_widget = Static(
+            "[bold #00ff66]GHOSTTRACE:[/] [dim #779977]Thinking...[/]",
+            classes="response-thinking",
+            id=target_id,
+        )
+        self.mount(thinking_widget)
+        self.scroll_end(animate=False)
+        return target_id
+
+    def update_ai_stream(self, widget_id: str, current_text: str) -> None:
+        """Update active streaming text in the target widget."""
+        try:
+            widget = self.query_one(f"#{widget_id}", Static)
+            widget.update(f"[bold #00ff66]GHOSTTRACE:[/]\n{current_text}")
+            self.scroll_end(animate=False)
+        except Exception:
+            pass
+
+    def update_ai_response(self, widget_id: str, final_text: str, success: bool) -> None:
+        """Finalize the AI response widget with full text and appropriate styling."""
+        try:
+            widget = self.query_one(f"#{widget_id}", Static)
+            if success:
+                widget.remove_class("response-thinking")
+                widget.add_class("response-line")
+                widget.update(f"[bold #00ff66]GHOSTTRACE:[/]\n{final_text}")
+            else:
+                widget.remove_class("response-thinking")
+                widget.add_class("response-error")
+                widget.update(final_text)
+            self.scroll_end(animate=False)
+        except Exception:
+            pass
+
+    def add_busy_warning(self, query: str) -> None:
+        """Display busy warning when user submits a query while inference is running."""
+        cmd_widget = Static(
+            f"[bold #00ff66]ghost>[/] [bold #ffffff]{query}[/]",
+            classes="user-command-line",
+        )
+        self.mount(cmd_widget)
+
+        busy_widget = Static(
+            "[bold #ff6666]GhostTrace is currently generating a response. Please wait.[/]",
+            classes="response-error",
+        )
+        self.mount(busy_widget)
         self.scroll_end(animate=False)
 
     def clear_log(self) -> None:

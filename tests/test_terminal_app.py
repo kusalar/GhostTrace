@@ -41,7 +41,7 @@ async def test_app_command_submission_and_response() -> None:
         await pilot.press("enter")
 
         conv_log = app.query_one("#conversation-log", ConversationLog)
-        assert any("AI ENGINE: NOT CONNECTED" in str(child.render()) for child in conv_log.children)
+        assert any("AI ENGINE STATUS" in str(child.render()) for child in conv_log.children)
 
         # Status panel should reflect 1 command executed
         status_panel = app.query_one("#status-panel", StatusPanel)

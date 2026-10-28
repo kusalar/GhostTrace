@@ -33,6 +33,7 @@ class StatusPanel(Widget):
         super().__init__(**kwargs)
         self.settings = settings
         self._command_count = 0
+        self._ai_status_text = "STANDBY"
 
     def compose(self) -> ComposeResult:
         yield Static("SYSTEM TELEMETRY", id="status-title")
@@ -41,10 +42,26 @@ class StatusPanel(Widget):
     def update_command_count(self, count: int) -> None:
         """Update session command count and refresh widget display."""
         self._command_count = count
-        body = self.query_one("#status-body", Static)
-        body.update(self._build_content())
+        try:
+            body = self.query_one("#status-body", Static)
+            body.update(self._build_content())
+        except Exception:
+            pass
+
+    def update_ai_status(self, status_text: str) -> None:
+        """Update AI subsystem state string in telemetry panel."""
+        self._ai_status_text = status_text
+        try:
+            body = self.query_one("#status-body", Static)
+            body.update(self._build_content())
+        except Exception:
+            pass
 
     def _build_content(self) -> str:
+        ai_color = "#33ff33" if self._ai_status_text in ("READY", "LOADED") else "#ffaa00"
+        if self._ai_status_text in ("OFFLINE", "MISSING", "RUNTIME MISSING"):
+            ai_color = "#ff5555"
+
         return (
             f"[bold #33ff33]GhostTrace[/] [dim]v{self.settings.app_version}[/]\n\n"
             f"[dim #558855]Environment:[/] [bold]{self.settings.env}[/]\n"
@@ -54,7 +71,7 @@ class StatusPanel(Widget):
             "[bold #00aa44]Subsystems:[/]\n"
             " • Foundation: [bold #33ff33]OK[/]\n"
             " • Interface : [bold #33ff33]ACTIVE[/]\n"
-            " • AI Engine : [bold #ff5555]OFFLINE[/]\n"
+            f" • AI Engine : [bold {ai_color}]{self._ai_status_text}[/]\n"
             " • Persona   : [dim #667766]STEP 04[/]\n"
             " • Guardian  : [dim #667766]STEP 06[/]\n"
             " • Memory    : [dim #667766]STEP 07[/]\n"

@@ -124,7 +124,7 @@ def test_builtin_commands() -> None:
     # 2. about
     about_res = registry.execute("about", ctx)
     assert about_res.success is True
-    assert "GHOSTTRACE v0.2.0" in str(about_res.output)
+    assert "GHOSTTRACE v0.3.0" in str(about_res.output)
     assert "Developer Assistant" in str(about_res.output)
 
     # 3. status
@@ -132,12 +132,12 @@ def test_builtin_commands() -> None:
     assert status_res.success is True
     assert "Foundation (Step 01)" in str(status_res.output)
     assert "Terminal UI & CLI (Step 02)" in str(status_res.output)
-    assert "NOT CONNECTED" in str(status_res.output)
+    assert "Local AI Engine (Step 03)" in str(status_res.output)
 
     # 4. version
     version_res = registry.execute("version", ctx)
     assert version_res.success is True
-    assert "GhostTrace v0.2.0" in str(version_res.output)
+    assert "GhostTrace v0.3.0" in str(version_res.output)
 
     # 5. clear
     clear_res = registry.execute("clear", ctx)
@@ -152,7 +152,7 @@ def test_builtin_commands() -> None:
     # 7. ai
     ai_res = registry.execute("ai", ctx)
     assert ai_res.success is True
-    assert "AI ENGINE: NOT CONNECTED" in str(ai_res.output)
+    assert "AI ENGINE STATUS" in str(ai_res.output)
 
     # 8. history
     history_res = registry.execute("history", ctx)
@@ -181,3 +181,56 @@ def test_builtin_history_empty_message() -> None:
     res = registry.execute("history", ctx)
     assert res.success is True
     assert "No commands recorded in this session yet." in str(res.output)
+
+
+def test_ai_subcommands_handling() -> None:
+    """Verify ai subcommands (status, info, unload, clear, unknown) execute properly."""
+    registry = create_default_registry()
+    ctx = CommandContext(settings=Settings(), history=SessionHistory())
+
+    # 1. ai status
+    status_res = registry.execute("ai status", ctx)
+    assert status_res.success is True
+    assert "AI ENGINE STATUS" in str(status_res.output)
+    assert "Runtime (llama.cpp)" in str(status_res.output)
+
+    # 2. ai info
+    info_res = registry.execute("ai info", ctx)
+    assert info_res.success is True
+    assert "LOCAL AI CONFIGURATION" in str(info_res.output)
+    assert "Qwen2.5-1.5B-Instruct" in str(info_res.output)
+
+    # 3. ai unload (when not loaded)
+    unload_res = registry.execute("ai unload", ctx)
+    assert unload_res.success is True
+    assert "Model was not loaded" in str(unload_res.output)
+
+    # 4. ai clear
+    clear_res = registry.execute("ai clear", ctx)
+    assert clear_res.success is True
+    assert "cleared" in str(clear_res.output)
+
+    # 5. ai unknown
+    unknown_res = registry.execute("ai invalid_action", ctx)
+    assert unknown_res.success is False
+    assert "Unknown AI subcommand 'invalid_action'" in str(unknown_res.output)
+
+
+def test_registry_ai_fallback_execution() -> None:
+    """Verify registry delegates natural language to ai_engine when present in context."""
+    from unittest.mock import MagicMock
+
+    registry = create_default_registry()
+    mock_engine = MagicMock()
+    mock_engine.ask.return_value = MagicMock(text="Mocked explanation of Python decorators.")
+
+    ctx = CommandContext(
+        settings=Settings(),
+        history=SessionHistory(),
+        ai_engine=mock_engine,
+    )
+
+    res = registry.execute("Explain python decorators", ctx)
+    assert res.success is True
+    assert "Mocked explanation of Python decorators" in str(res.output)
+    mock_engine.ask.assert_called_once_with("Explain python decorators")

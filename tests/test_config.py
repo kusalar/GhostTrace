@@ -12,7 +12,7 @@ def test_default_configuration() -> None:
     settings = Settings()
 
     assert settings.app_name == "GhostTrace"
-    assert settings.app_version == "0.2.0"
+    assert settings.app_version == "0.3.0"
     assert "haunted" in settings.app_description.lower()
     assert settings.env == "development"
     assert settings.debug is False
@@ -23,10 +23,23 @@ def test_default_configuration() -> None:
     assert isinstance(settings.model_dir, Path)
     assert isinstance(settings.db_dir, Path)
     assert isinstance(settings.log_dir, Path)
+    assert isinstance(settings.model_path, Path)
 
     # Subdirectories default to app_data_dir subpaths
     assert settings.db_dir == settings.app_data_dir / "db"
     assert settings.log_dir == settings.app_data_dir / "logs"
+    assert settings.model_path == settings.model_dir / "qwen2.5-1.5b-instruct-q4_k_m.gguf"
+
+    # Verify local AI default parameters
+    assert settings.ai_enabled is True
+    assert settings.ai_context_size == 2048
+    assert settings.ai_max_tokens == 512
+    assert settings.ai_temperature == 0.7
+    assert settings.ai_top_p == 0.9
+    assert settings.ai_threads == 2
+    assert settings.ai_gpu_layers == 0
+    assert settings.ai_batch_size == 128
+    assert settings.ai_history_limit == 10
 
 
 def test_environment_variable_overrides(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -102,3 +115,66 @@ def test_get_default_app_data_dir_fallback(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.delenv("LOCALAPPDATA", raising=False)
     fallback_dir = get_default_app_data_dir()
     assert fallback_dir == Path.home() / ".ghosttrace"
+
+
+def test_ai_settings_overrides(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Verify local AI configuration overrides via environment variables."""
+    custom_model = tmp_path / "custom.gguf"
+    monkeypatch.setenv("GHOSTTRACE_MODEL_PATH", str(custom_model))
+    monkeypatch.setenv("GHOSTTRACE_AI_ENABLED", "false")
+    monkeypatch.setenv("GHOSTTRACE_AI_CONTEXT_SIZE", "4096")
+    monkeypatch.setenv("GHOSTTRACE_AI_MAX_TOKENS", "1024")
+    monkeypatch.setenv("GHOSTTRACE_AI_TEMPERATURE", "0.2")
+    monkeypatch.setenv("GHOSTTRACE_AI_TOP_P", "0.85")
+    monkeypatch.setenv("GHOSTTRACE_AI_THREADS", "4")
+    monkeypatch.setenv("GHOSTTRACE_AI_GPU_LAYERS", "1")
+    monkeypatch.setenv("GHOSTTRACE_AI_BATCH_SIZE", "256")
+    monkeypatch.setenv("GHOSTTRACE_AI_HISTORY_LIMIT", "20")
+
+    settings = Settings()
+    assert settings.model_path == custom_model.resolve()
+    assert settings.ai_enabled is False
+    assert settings.ai_context_size == 4096
+    assert settings.ai_max_tokens == 1024
+    assert settings.ai_temperature == 0.2
+    assert settings.ai_top_p == 0.85
+    assert settings.ai_threads == 4
+    assert settings.ai_gpu_layers == 1
+    assert settings.ai_batch_size == 256
+    assert settings.ai_history_limit == 20
+
+
+def test_ai_settings_validation_errors() -> None:
+    """Verify validation boundaries on numeric AI configuration."""
+    with pytest.raises(ValidationError):
+        Settings(ai_context_size=100)  # below 256
+
+    with pytest.raises(ValidationError):
+        Settings(ai_max_tokens=0)  # below 1
+
+    with pytest.raises(ValidationError):
+        Settings(ai_temperature=-0.1)  # below 0.0
+
+    with pytest.raises(ValidationError):
+        Settings(ai_temperature=2.5)  # above 2.0
+
+    with pytest.raises(ValidationError):
+        Settings(ai_top_p=0.0)  # must be > 0.0
+
+    with pytest.raises(ValidationError):
+        Settings(ai_top_p=1.5)  # must be <= 1.0
+
+    with pytest.raises(ValidationError):
+        Settings(ai_threads=0)  # must be >= 1
+
+    with pytest.raises(ValidationError):
+        Settings(ai_threads=64)  # must be <= 32
+
+    with pytest.raises(ValidationError):
+        Settings(ai_gpu_layers=-1)  # must be >= 0
+
+    with pytest.raises(ValidationError):
+        Settings(ai_batch_size=0)  # must be >= 1
+
+    with pytest.raises(ValidationError):
+        Settings(ai_history_limit=0)  # must be >= 1

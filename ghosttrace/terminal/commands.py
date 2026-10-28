@@ -57,13 +57,29 @@ def handle_about(args: list[str], context: CommandContext) -> CommandResult:
         "  • Architecture : Fully offline-first, local CPU inference",
         "  • Platform     : Windows 10/11 64-bit native",
         "  • Target Spec  : Intel Core i3-1115G4, 12 GB RAM, Intel UHD graphics",
-        "  • Status       : Step 02 / 10 — Interactive Terminal & CLI",
+        "  • Status       : Step 03 / 10 — Local AI Integration",
     ]
     return CommandResult(success=True, output="\n".join(lines))
 
 
 def handle_status(args: list[str], context: CommandContext) -> CommandResult:
     """Display current system status distinguishing implemented from planned features."""
+    ai_engine = context.ai_engine
+    if ai_engine is None:
+        from ghosttrace.ai.engine import AIEngine
+
+        ai_engine = AIEngine(context.settings)
+
+    ai_status = ai_engine.get_status()
+    if not ai_status.runtime_available:
+        ai_step_str = "[!] RUNTIME MISSING"
+    elif ai_status.is_loaded:
+        ai_step_str = "[OK] LOADED (READY)"
+    elif ai_status.model_exists:
+        ai_step_str = "[OK] READY (UNLOADED)"
+    else:
+        ai_step_str = "[!] STANDBY (NO WEIGHTS)"
+
     lines = [
         "APPLICATION SUBSYSTEM STATUS",
         "==================================================",
@@ -75,7 +91,7 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         "--------------------------------------------------",
         "  Foundation (Step 01)        : [OK] IMPLEMENTED",
         "  Terminal UI & CLI (Step 02) : [OK] ACTIVE",
-        "  Local AI Engine (Step 03)   : [..] NOT CONNECTED",
+        f"  Local AI Engine (Step 03)   : {ai_step_str}",
         "  Ghost Persona (Step 04)     : [..] NOT IMPLEMENTED",
         "  Developer Intel (Step 05)   : [..] NOT IMPLEMENTED",
         "  Command Guardian (Step 06)  : [..] NOT IMPLEMENTED",
@@ -138,12 +154,105 @@ def handle_ghost(args: list[str], context: CommandContext) -> CommandResult:
 
 
 def handle_ai(args: list[str], context: CommandContext) -> CommandResult:
-    """Display AI inference subsystem status."""
-    msg = (
-        "AI ENGINE: NOT CONNECTED\n"
-        "Local open-weight model integration (Qwen2.5 GGUF) is scheduled for Step 03."
+    """Display and manage the local AI inference subsystem."""
+    ai_engine = context.ai_engine
+    if ai_engine is None:
+        from ghosttrace.ai.engine import AIEngine
+
+        ai_engine = AIEngine(context.settings)
+
+    subcommand = args[0].lower() if args else "status"
+
+    if subcommand == "status":
+        status = ai_engine.get_status()
+        runtime_badge = (
+            f"[OK] INSTALLED (v{status.runtime_version})"
+            if status.runtime_available
+            else "[X] NOT INSTALLED"
+        )
+        model_exists_badge = "FOUND" if status.model_exists else "NOT FOUND"
+        loaded_badge = "LOADED (in RAM)" if status.is_loaded else "UNLOADED (standby)"
+        busy_badge = "GENERATING" if status.is_busy else "IDLE"
+
+        lines = [
+            "AI ENGINE STATUS",
+            "==================================================",
+            f"  Runtime (llama.cpp) : {runtime_badge}",
+            f"  Model Status        : {status.model_status.value}",
+            f"  Model Path          : {status.model_path}",
+            f"  Model Weights       : {model_exists_badge}",
+            f"  Memory State        : {loaded_badge}",
+            f"  Engine State        : {busy_badge}",
+            f"  Session Exchanges   : {status.history_count}",
+            "--------------------------------------------------",
+            f"  Context Window      : {status.context_size} tokens",
+            f"  Max Output Tokens   : {status.max_tokens} tokens",
+            f"  CPU Threads         : {status.threads}",
+            f"  GPU Offload Layers  : {status.gpu_layers} (CPU-only)",
+            "==================================================",
+        ]
+        if not status.runtime_available:
+            lines.append("\nTo install the runtime:\n  pip install llama-cpp-python")
+        elif not status.model_exists:
+            lines.append(
+                f"\nTo configure model weights:\n"
+                f"  Place Qwen2.5-1.5B-Instruct GGUF at:\n  {status.model_path}\n"
+                f"  or configure GHOSTTRACE_MODEL_PATH."
+            )
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "load":
+        try:
+            ai_engine.load_model()
+            meta = ai_engine.model_manager.get_metadata()
+            msg = (
+                f"Model loaded successfully: {meta.model_path.name}\n"
+                f"Size: {meta.file_size_mb} MB | Context: {context.settings.ai_context_size} | "
+                f"Threads: {context.settings.ai_threads}"
+            )
+            return CommandResult(success=True, output=msg)
+        except Exception as exc:
+            return CommandResult(success=False, output=f"Failed to load model:\n{exc}")
+
+    if subcommand == "unload":
+        unloaded = ai_engine.unload_model()
+        if unloaded:
+            return CommandResult(
+                success=True, output="Model unloaded from memory. System resources released."
+            )
+        return CommandResult(success=True, output="Model was not loaded in memory.")
+
+    if subcommand == "info":
+        lines = [
+            "LOCAL AI CONFIGURATION & HARDWARE PARAMETERS",
+            "==================================================",
+            "  Target Architecture : Qwen2.5-1.5B-Instruct",
+            "  Format & Precision  : GGUF (Q4_K_M)",
+            f"  Model Path          : {ai_engine.model_manager.model_path}",
+            f"  AI Inference Active : {context.settings.ai_enabled}",
+            f"  Context Window      : {context.settings.ai_context_size} tokens",
+            f"  Max Output Tokens   : {context.settings.ai_max_tokens} tokens",
+            f"  Temperature         : {context.settings.ai_temperature}",
+            f"  Top-P Sampling      : {context.settings.ai_top_p}",
+            f"  CPU Threads         : {context.settings.ai_threads}",
+            f"  GPU Offload Layers  : {context.settings.ai_gpu_layers} (CPU-only)",
+            f"  Batch Size          : {context.settings.ai_batch_size}",
+            f"  History Limit       : {context.settings.ai_history_limit} exchanges",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "clear":
+        ai_engine.clear_conversation()
+        return CommandResult(success=True, output="AI conversation context buffer cleared.")
+
+    return CommandResult(
+        success=False,
+        output=(
+            f"Unknown AI subcommand '{subcommand}'. "
+            "Available: ai status, ai load, ai unload, ai info, ai clear"
+        ),
     )
-    return CommandResult(success=True, output=msg)
 
 
 def create_default_registry() -> CommandRegistry:
@@ -214,8 +323,8 @@ def create_default_registry() -> CommandRegistry:
     registry.register(
         Command(
             name="ai",
-            description="Display AI inference engine status.",
-            usage="ai",
+            description="Display and manage the local AI inference engine.",
+            usage="ai [status|load|unload|info|clear]",
             handler=handle_ai,
         )
     )

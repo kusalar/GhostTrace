@@ -60,3 +60,11 @@ class GhostTraceHeader(Widget):
                 "[dim #883333]AI ENGINE:[/] [bold #ff5555]NOT CONNECTED[/]",
                 id="ai-status",
             )
+
+    def update_ai_status(self, label: str, color_markup: str = "bold #ff5555") -> None:
+        """Update AI engine connection status badge in header."""
+        try:
+            widget = self.query_one("#ai-status", Static)
+            widget.update(f"[dim #883333]AI ENGINE:[/] [{color_markup}]{label}[/]")
+        except Exception:
+            pass

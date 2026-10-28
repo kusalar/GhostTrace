@@ -1,7 +1,7 @@
 # GhostTrace Architecture Specification
 
-> **Status:** Step 02 / 10 — Interactive Terminal Interface & CLI  
-> **Note:** Foundation, Configuration, Logging, Textual TUI, and Typer CLI are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
+> **Status:** Step 03 / 10 — Local AI Integration  
+> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, and Local AI Subsystem (Qwen2.5 GGUF + llama.cpp) are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
 
 ---
 
@@ -21,11 +21,11 @@
 ┌───────────────────────────────▼─────────────────────────────────┐
 │             Interactive Terminal Interface (Textual)            │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │ GhostTraceHeader (Branding, Status, Honest Disconnects)   │  │
+│  │ GhostTraceHeader (Branding, Live AI & Subsystem States)   │  │
 │  ├─────────────────────────────┬─────────────────────────────┤  │
-│  │ ConversationLog (Scrollable)│ StatusPanel (Telemetry)     │  │
+│  │ ConversationLog (Streaming) │ StatusPanel (Telemetry)     │  │
 │  ├─────────────────────────────┴─────────────────────────────┤  │
-│  │ CommandInput (History Nav: Up/Down, Prompt: 'ghost>')     │  │
+│  │ CommandInput (History Nav: Up/Down, Natural Language)     │  │
 │  ├───────────────────────────────────────────────────────────┤  │
 │  │ Footer (Shortcuts: Enter, Ctrl+L, Ctrl+C, Escape)         │  │
 │  └───────────────────────────────────────────────────────────┘  │
@@ -41,7 +41,7 @@
         ▼                       ▼                       ▼
 ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
 │  AI Engine   │        │ Ghost Persona│        │Safety Guard  │
-│  (Planned)   │        │  (Planned)   │        │  (Planned)   │
+│(Implemented) │        │  (Planned)   │        │  (Planned)   │
 └───────┬──────┘        └───────┬──────┘        └───────┬──────┘
         │                       │                       │
         └───────────────────────┼───────────────────────┘
@@ -72,18 +72,26 @@
 - **Status:** Implemented (Interactive TUI & CLI Architecture).
 - **Responsibility:** User interaction, presentation, command execution routing, and session history.
 - **Components:**
-  - `GhostTraceApp`: Textual application orchestrating the visual layout and keyboard event lifecycle.
-  - `GhostTraceHeader`: Displays branding, entity status (`AWAKE`), and AI status (`NOT CONNECTED`).
-  - `ConversationLog`: Scrollable log managing user command exchanges and formatted outputs.
+  - `GhostTraceApp`: Textual application orchestrating the visual layout, background workers, and keyboard event lifecycle.
+  - `GhostTraceHeader`: Displays branding, entity status (`AWAKE`), and live AI status (`READY`, `LOADED`, `THINKING`).
+  - `ConversationLog`: Scrollable log managing user command exchanges, incremental AI streaming, and formatted outputs.
   - `StatusPanel`: Live telemetry panel reflecting environment, version, and active command counts.
   - `CommandInput`: Specialized input widget supporting Up/Down arrow session history cycling.
   - `CommandRegistry`: Decoupled registry routing input to registered command handlers with alias resolution.
   - `SessionHistory`: Lightweight in-memory FIFO history excluding blank inputs and self-referential commands.
   - `interface`: High-level entry points for interactive TUI launch and non-interactive Rich CLI reporting.
 
-### `ghosttrace.ai` (Planned — Step 03)
-- **Status:** Package initialized; implementation planned.
-- **Responsibility:** Local open-weight LLM inference orchestration via `llama-cpp-python` / `llama.cpp` using Qwen2.5 Instruct GGUF.
+### `ghosttrace.ai` (Implemented in Step 03)
+- **Status:** Implemented (Local CPU Inference via llama.cpp + Qwen2.5 GGUF).
+- **Responsibility:** Local open-weight LLM inference orchestration, lazy model loading, context management, and non-blocking streaming execution.
+- **Components:**
+  - `AIEngine`: Unified facade coordinating model lifecycle, prompt assembly, and inference execution.
+  - `ModelManager`: Hardware-aware model discovery, validation, thread-safe lazy loading, and RAM release.
+  - `InferenceEngine`: Low-level wrapper executing chat completions via `llama-cpp-python` with token streaming and concurrency locks.
+  - `ConversationManager`: In-memory conversation context enforcing bounded limits and pruning older exchanges while preserving the system prompt.
+  - `prompts`: Dedicated developer assistant system prompt ensuring factual, humble, and developer-centric guidance.
+  - `schemas`: Typed Pydantic models for status, model metadata, execution config, and token statistics.
+  - `exceptions`: Domain-specific AI exception hierarchy (`RuntimeUnavailableError`, `ModelNotFoundError`, `ModelBusyError`, etc.).
 
 ### `ghosttrace.ghost` (Planned — Step 04)
 - **Status:** Package initialized; implementation planned.
@@ -107,7 +115,7 @@
 
 1. **Step 01: Foundation, Environment & Configuration** *(Completed)*
 2. **Step 02: Interactive Terminal Interface & CLI** *(Completed)*
-3. **Step 03: Local AI Integration**
+3. **Step 03: Local AI Integration** *(Completed)*
 4. **Step 04: Ghost Personality & Behaviour Engine**
 5. **Step 05: Developer Intelligence & Coding Assistance**
 6. **Step 06: Command Guardian & Execution Safety**
