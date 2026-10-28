@@ -54,12 +54,12 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 | **Logging Infrastructure** | **Completed** | Rotating file logging (10 MB x 5) and console output |
 | **Interactive Terminal UI** | **Completed** | Textual green-phosphor CRT interface & live telemetry |
 | **Command System & History** | **Completed** | Command registry, argument parser, in-memory history |
-| **CLI Framework** | **Completed** | Typer entry point with `status`, `--version`, `--help` |
+| **CLI Framework** | **Completed** | Typer entry point with `status`, `guard`, `--version`, `--help` |
 | **Local AI Integration** | **Completed** | Qwen2.5 GGUF inference via llama.cpp (CPU streaming) |
 | **Ghost Persona Engine** | **Completed** | Three distinct personalities, traits, mood state, prompt pipeline |
 | **Developer Intelligence** | **Completed** | Code explanation, debugging, review, generation, refactoring, test generation, and safe local static analysis |
-| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (>95% coverage) |
-| *Terminal Guardian* | *Planned* | Step 06: Safety interceptor and command risk classifier |
+| **Command Guardian** | **Completed** | Command risk analysis, dangerous pattern rules, HMAC-SHA256 approval tokens, controlled subprocess execution |
+| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (>94% coverage) |
 | *Persistent Memory* | *Planned* | Step 07: SQLite history and session management |
 | *System Diagnostics* | *Planned* | Step 08: OS telemetry and hardware resource adaptation |
 | *Haunted Experience* | *Planned* | Step 09: Interactive events and atmospheric haunting |
@@ -73,8 +73,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 - [x] **Step 02: Interactive Terminal Interface & CLI**
 - [x] **Step 03: Local AI Integration**
 - [x] **Step 04: Ghost Personality & Behaviour Engine**
-- [x] **Step 05: Developer Intelligence & Coding Assistance** *(Current)*
-- [ ] **Step 06: Command Guardian & Execution Safety**
+- [x] **Step 05: Developer Intelligence & Coding Assistance**
+- [x] **Step 06: Command Guardian & Execution Safety** *(Current)*
 - [ ] **Step 07: Persistent Memory & Project Context**
 - [ ] **Step 08: System Awareness & Diagnostics**
 - [ ] **Step 09: Haunted Experience & Interactive Events**
@@ -179,13 +179,26 @@ Print a Rich diagnostic report of settings and roadmap status directly to stdout
 ghosttrace status
 ```
 
-### 7.3 Version Information
+### 7.3 Command Guardian CLI Commands
+Analyze or explain commands non-interactively without launching the TUI:
 ```powershell
-ghosttrace --version
-# Output: GhostTrace v0.3.0
+# Statically analyze command risk
+ghosttrace guard analyze "python --version"
+
+# Explain command purpose and hazards
+ghosttrace guard explain "git reset --hard"
+
+# Display Guardian safety policy and execution parameters
+ghosttrace guard status
 ```
 
-### 7.4 Help Information
+### 7.4 Version Information
+```powershell
+ghosttrace --version
+# Output: GhostTrace v0.6.0
+```
+
+### 7.5 Help Information
 ```powershell
 ghosttrace --help
 ```
@@ -223,11 +236,12 @@ altering its original implementation...
 | Command | Usage | Description |
 | :--- | :--- | :--- |
 | `help` (or `?`) | `help [cmd]` | Displays available commands with descriptions and usage syntax. |
+| `guard` | `guard [help\|status\|analyze\|explain\|run\|approve\|cancel\|history\|clear\|enable\|disable]` | Command Guardian & execution safety subsystem. |
 | `ai` | `ai [status\|load\|unload\|info\|clear]` | Displays and manages the local AI inference subsystem. |
 | `dev` | `dev [help\|status\|enable\|disable\|language\|analyze\|explain\|debug\|review\|generate\|refactor\|tests]` | Developer intelligence, coding assistance & safe code analysis. |
 | `about` (or `info`) | `about` | Displays project vision, triple identity, and target specifications. |
 | `status` | `status` | Displays system status distinguishing implemented from planned features. |
-| `version` (or `v`) | `version` | Displays the GhostTrace version (`v0.5.0`). |
+| `version` (or `v`) | `version` | Displays the GhostTrace version (`v0.6.0`). |
 | `clear` (or `cls`) | `clear` | Clears the scrollable conversation log. |
 | `history` (or `hist`) | `history` | Lists commands entered during the active session. |
 | `ghost` | `ghost` | Displays ghost personality status, profiles, and mood telemetry. |
@@ -338,6 +352,60 @@ GhostTrace includes a zero-execution static analysis engine:
 - `dev tests <code>` — Explicitly triggers unit test generation.
 - `dev enable` / `dev disable` — Toggles developer intelligence at runtime.
 
+### Command Guardian & Execution Safety (Step 06)
+
+GhostTrace includes an active shell safety subsystem — the **Command Guardian** — that analyzes terminal commands before execution, classifies operational risk, and enforces strict, one-time cryptographic user approvals.
+
+#### The Five Risk Levels
+
+| Risk | Meaning | Execution Policy |
+| :--- | :--- | :--- |
+| `SAFE` | Read-only query or zero-impact operation | Explicit user approval required |
+| `LOW` | Minor local changes or standard development tasks | Explicit user approval required |
+| `MEDIUM` | Meaningful project/system modifications or unknown binaries | Explicit user approval required |
+| `HIGH` | Potentially destructive or security-sensitive operation | **Blocked by default** (No override) |
+| `BLOCKED` | Clearly destructive, malicious, or prohibited operation | **Permanently prohibited** (Never executed) |
+
+#### Dangerous Pattern Detection Categories
+
+GhostTrace employs conservative regex heuristics and argument analysis for cross-platform and Windows environments:
+- **Destructive Filesystem Operations:** Recursive deletion (`rmdir /s /q`, `rm -rf`), wildcard deletion (`del /f *`), drive formatting (`format`), disk partitioning (`diskpart`), shadow copy wiping (`vssadmin delete shadows`).
+- **System-Level Operations:** Shutdown/reboot (`shutdown /s /t 0`), service deletion/stoppage (`sc delete`, `net stop`), registry modifications (`reg delete`), ACL and permission tampering (`icacls /grant`, `takeown`), firewall disabling (`netsh advfirewall`, `Set-MpPreference`), privilege elevation (`runas`, `sudo`, `gsudo`).
+- **Suspicious Execution Patterns:** Obfuscated/encoded PowerShell (`powershell -enc`), hidden subwindows (`-w hidden`), execution policy bypass (`-ep bypass`), download-and-execute pipes (`curl | bash`, `iex (New-Object Net.WebClient)`), remote script host loaders (`mshta`, `regsvr32 /i:http`).
+- **Version Control Risks:** Hard reset (`git reset --hard`), forced clean (`git clean -fdx`), force push (`git push -f`), forced branch deletion (`git branch -D`), history rewriting (`git filter-branch`).
+- **Package & Environment Risks:** Package uninstallation (`pip uninstall`, `npm uninstall`), global package pollution (`npm install -g`), persistent Registry environment edits (`setx`).
+
+#### Restricted Execution Model
+
+GhostTrace implements a safe subprocess engine with strict boundaries:
+1. **No Shell Invocations:** Subprocesses run with `shell=False`.
+2. **No General Shell Wrappers:** Commands are never executed through `cmd.exe /c` or `powershell.exe`.
+3. **No Shell Chaining or Redirection:** Unquoted shell operators (`&&`, `||`, `;`, `|`, `>`, `<`) are rejected during analysis.
+4. **Configurable Execution Limits:** 30-second default timeout (configurable up to 120s) with hard termination (`proc.kill()`), and bounded output capture (default 4,000 characters).
+5. **No AI Auto-Execution:** Commands suggested by the AI are never run automatically; explicit user invocation via `guard run` is required.
+
+#### Cryptographic Approval Lifecycle
+
+Every command execution requires explicit approval:
+- **HMAC-SHA256 Token:** The approval token is cryptographically bound to the exact command text, parsed arguments, canonical working directory, risk classification, and safety policy. Any mutation invalidates the token.
+- **Single-Use Semantics:** Once consumed or cancelled, a token cannot be reused.
+- **Short-Lived TTL:** Tokens expire after 60 seconds (configurable).
+- **Textual Approval Modal:** In interactive mode, `guard run <command>` launches a high-contrast modal screen displaying the command, binary path, working directory, risk reasons, side effects, and timeout limits before requesting confirmation.
+
+#### Guardian Command Family (`guard`)
+
+- `guard` — Displays Guardian subsystem status and active configuration.
+- `guard help` — Complete Guardian help and command reference.
+- `guard status` — Displays policy, timeout limits, and pending approval counts.
+- `guard analyze <command>` — Statically analyzes command risk without execution.
+- `guard explain <command>` — Explains command purpose, side effects, and risk warnings.
+- `guard run <command>` — Analyzes command and displays an approval preview (or interactive modal).
+- `guard approve [token]` — Approves and executes a pending command.
+- `guard cancel [token]` — Cancels a pending approval request.
+- `guard history` — Displays bounded, session-only execution history (with credential redaction).
+- `guard clear` — Clears session execution history.
+- `guard enable` / `guard disable` — Toggles Guardian subsystem and execution permissions.
+
 ### Keyboard Shortcuts
 
 - <kbd>Enter</kbd> — Submit the command or AI prompt in the input field.
@@ -353,21 +421,22 @@ GhostTrace includes a zero-execution static analysis engine:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ GHOSTTRACE v0.5.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
+│ GHOSTTRACE v0.6.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
 ├──────────────────────────────────────────────┬─────────────────────────┤
 │ ConversationLog                              │ StatusPanel             │
 │                                              │                         │
-│ [Something has awakened inside this terminal]│ GhostTrace v0.5.0       │
+│ [Something has awakened inside this terminal]│ GhostTrace v0.6.0       │
 │                                              │                         │
-│ ghost> Explain Python decorators             │ Environment: development│
-│ GHOSTTRACE:                                  │ Commands Run: 3         │
-│ A Python decorator is a callable that wraps  │                         │
-│ another function to extend its behavior...   │ Subsystems:             │
-│                                              │ • Foundation : OK       │
-│ ghost> ghost set phantom-coder               │ • Interface  : ACTIVE   │
-│ Active personality switched to: Phantom Coder│ • AI Engine  : READY    │
-│ "Ah, another bug to chase. Excellent."       │ • Persona    : ACTIVE   │
-│                                              │ • Dev Intel  : ACTIVE   │
+│ ghost> guard analyze git reset --hard        │ Environment: development│
+│ GHOSTTRACE:                                  │ Commands Run: 4         │
+│ Risk Level: [ HIGH RISK - BLOCKED ]          │                         │
+│ • [VCS-001] Hard git reset permanently      │ Subsystems:             │
+│   discards uncommitted modifications.        │ • Foundation : OK       │
+│ Suggested Alternative: git stash             │ • Interface  : ACTIVE   │
+│                                              │ • AI Engine  : READY    │
+│ ghost> guard run python --version            │ • Persona    : ACTIVE   │
+│ [Command Approval Modal Displayed]           │ • Dev Intel  : ACTIVE   │
+│                                              │ • Guardian   : ACTIVE   │
 │                                              │                         │
 ├──────────────────────────────────────────────┴─────────────────────────┤
 │ ghost> [ Enter command or ask a programming question...              ] │

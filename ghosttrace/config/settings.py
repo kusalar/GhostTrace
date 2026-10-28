@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Application Metadata
     app_name: str = "GhostTrace"
-    app_version: str = "0.5.0"
+    app_version: str = "0.6.0"
     app_description: str = "Offline-first AI-powered haunted terminal companion."
 
     # Environment & Execution Mode
@@ -137,6 +137,44 @@ class Settings(BaseSettings):
     dev_max_context_chars: int = Field(
         default=30000,
         description="Maximum character length for total developer task context.",
+    )
+
+    # Command Guardian & Execution Safety (Step 06)
+    guard_enabled: bool = Field(
+        default=True,
+        description="Enable or disable Command Guardian and execution safety subsystem.",
+    )
+    guard_execution_enabled: bool = Field(
+        default=True,
+        description="Enable or disable controlled command execution.",
+    )
+    guard_require_approval: bool = Field(
+        default=True,
+        description="Require explicit user approval before every command execution.",
+    )
+    guard_timeout_seconds: int = Field(
+        default=30,
+        description="Default timeout in seconds for controlled command execution.",
+    )
+    guard_max_timeout_seconds: int = Field(
+        default=120,
+        description="Maximum permitted configurable timeout in seconds.",
+    )
+    guard_max_output_chars: int = Field(
+        default=12000,
+        description="Maximum characters of stdout and stderr captured per command.",
+    )
+    guard_history_limit: int = Field(
+        default=50,
+        description="Maximum number of command execution records retained in session memory.",
+    )
+    guard_block_high_risk: bool = Field(
+        default=True,
+        description="Block execution of high-risk commands by default.",
+    )
+    guard_blocked_commands_enabled: bool = Field(
+        default=True,
+        description="Enforce strict blocking of dangerous and malicious commands.",
     )
 
     model_config = SettingsConfigDict(
@@ -262,9 +300,55 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         return value
 
+    @field_validator("guard_require_approval")
+    @classmethod
+    def validate_guard_require_approval(cls, value: bool) -> bool:
+        if not value:
+            msg = (
+                "Unsafe configuration: guard_require_approval cannot be disabled. "
+                "Explicit user approval is strictly mandatory for command execution."
+            )
+            raise ValueError(msg)
+        return value
+
+    @field_validator("guard_timeout_seconds")
+    @classmethod
+    def validate_guard_timeout_seconds(cls, value: int) -> int:
+        if not (1 <= value <= 120):
+            msg = f"Invalid guard_timeout_seconds {value}. Must be between 1 and 120."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("guard_max_timeout_seconds")
+    @classmethod
+    def validate_guard_max_timeout_seconds(cls, value: int) -> int:
+        if not (1 <= value <= 600):
+            msg = f"Invalid guard_max_timeout_seconds {value}. Must be between 1 and 600."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("guard_max_output_chars")
+    @classmethod
+    def validate_guard_max_output_chars(cls, value: int) -> int:
+        if not (100 <= value <= 1_000_000):
+            msg = f"Invalid guard_max_output_chars {value}. Must be between 100 and 1,000,000."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("guard_history_limit")
+    @classmethod
+    def validate_guard_history_limit(cls, value: int) -> int:
+        if not (1 <= value <= 500):
+            msg = f"Invalid guard_history_limit {value}. Must be between 1 and 500."
+            raise ValueError(msg)
+        return value
+
     def model_post_init(self, __context: object) -> None:
         """Resolve computed directories and debug-level adjustments."""
         super().model_post_init(__context)
+        # Ensure timeout does not exceed maximum configured timeout
+        if self.guard_timeout_seconds > self.guard_max_timeout_seconds:
+            object.__setattr__(self, "guard_timeout_seconds", self.guard_max_timeout_seconds)
         # Convert path strings or relative paths to resolved Path instances
         object.__setattr__(self, "app_data_dir", Path(self.app_data_dir).resolve())
         object.__setattr__(self, "model_dir", Path(self.model_dir).resolve())

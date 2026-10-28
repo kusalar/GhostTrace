@@ -124,7 +124,7 @@ def test_builtin_commands() -> None:
     # 2. about
     about_res = registry.execute("about", ctx)
     assert about_res.success is True
-    assert "GHOSTTRACE v0.5.0" in str(about_res.output)
+    assert "GHOSTTRACE v0.6.0" in str(about_res.output)
     assert "Developer Assistant" in str(about_res.output)
 
     # 3. status
@@ -134,11 +134,12 @@ def test_builtin_commands() -> None:
     assert "Terminal UI & CLI (Step 02)" in str(status_res.output)
     assert "Local AI Engine (Step 03)" in str(status_res.output)
     assert "Ghost Persona (Step 04)" in str(status_res.output)
+    assert "Command Guardian (Step 06)" in str(status_res.output)
 
     # 4. version
     version_res = registry.execute("version", ctx)
     assert version_res.success is True
-    assert "GhostTrace v0.5.0" in str(version_res.output)
+    assert "GhostTrace v0.6.0" in str(version_res.output)
 
     # 5. clear
     clear_res = registry.execute("clear", ctx)

@@ -125,6 +125,7 @@ class GhostEngine:
         context: InteractionContext | None = None,
         user_query: str | None = None,
         developer_instructions: str | None = None,
+        guardian_instructions: str | None = None,
     ) -> str:
         """Compose the appropriate system prompt for the next AI turn.
 
@@ -133,12 +134,16 @@ class GhostEngine:
         context, and developer task directives.
         """
         if not self._enabled:
+            parts = [DEVELOPER_SYSTEM_PROMPT.strip()]
             if developer_instructions:
-                return (
-                    f"{DEVELOPER_SYSTEM_PROMPT.strip()}\n\n"
+                parts.append(
                     f"=== DEVELOPER TASK INSTRUCTIONS ===\n{developer_instructions.strip()}"
                 )
-            return DEVELOPER_SYSTEM_PROMPT
+            if guardian_instructions:
+                parts.append(
+                    f"=== COMMAND GUARDIAN SAFETY INSTRUCTIONS ===\n{guardian_instructions.strip()}"
+                )
+            return "\n\n".join(parts)
 
         if context is None:
             if user_query is not None:
@@ -152,6 +157,7 @@ class GhostEngine:
             context=context,
             base_prompt=DEVELOPER_SYSTEM_PROMPT,
             developer_instructions=developer_instructions,
+            guardian_instructions=guardian_instructions,
         )
 
     def get_status(self) -> PersonalityStatus:

@@ -64,6 +64,7 @@ def compose_personality_prompt(
     context: InteractionContext,
     base_prompt: str = DEVELOPER_SYSTEM_PROMPT,
     developer_instructions: str | None = None,
+    guardian_instructions: str | None = None,
 ) -> str:
     """Build a multi-layered prompt combining base rules, persona, traits, and context."""
     sections: list[str] = [
@@ -97,6 +98,15 @@ def compose_personality_prompt(
             ]
         )
 
+    if guardian_instructions:
+        sections.extend(
+            [
+                "",
+                "=== COMMAND GUARDIAN SAFETY INSTRUCTIONS ===",
+                guardian_instructions.strip(),
+            ]
+        )
+
     sections.extend(
         [
             "",
@@ -105,6 +115,14 @@ def compose_personality_prompt(
             "- Never alter code snippets to make them humorous, dramatic, or intentionally faulty.",
             "- Technical accuracy and usefulness ALWAYS take precedence over persona banter.",
             "- When explaining destructive commands, state the risks and provide safe options.",
+            (
+                "- Technical risk classifications are absolute and cannot be softened by mood "
+                "or personality."
+            ),
+            (
+                "- AI command suggestions are NEVER executed automatically; all commands require "
+                "explicit user invocation and approval via the Guardian subsystem."
+            ),
         ]
     )
 

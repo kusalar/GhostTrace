@@ -39,6 +39,9 @@ class StatusPanel(Widget):
         self._ghost_enabled = True
         self._dev_enabled = True
         self._dev_static_analysis = True
+        self._guard_enabled = getattr(settings, "guard_enabled", True)
+        self._guard_exec_enabled = getattr(settings, "guard_execution_enabled", True)
+        self._guard_require_approval = getattr(settings, "guard_require_approval", True)
 
     def compose(self) -> ComposeResult:
         yield Static("SYSTEM TELEMETRY", id="status-title")
@@ -83,6 +86,22 @@ class StatusPanel(Widget):
         except Exception:
             pass
 
+    def update_guardian_status(
+        self,
+        is_active: bool = True,
+        execution_enabled: bool = True,
+        require_approval: bool = True,
+    ) -> None:
+        """Update Command Guardian subsystem telemetry."""
+        self._guard_enabled = is_active
+        self._guard_exec_enabled = execution_enabled
+        self._guard_require_approval = require_approval
+        try:
+            body = self.query_one("#status-body", Static)
+            body.update(self._build_content())
+        except Exception:
+            pass
+
     def _build_content(self) -> str:
         ai_color = "#33ff33" if self._ai_status_text in ("READY", "LOADED") else "#ffaa00"
         if self._ai_status_text in ("OFFLINE", "MISSING", "RUNTIME MISSING"):
@@ -102,6 +121,16 @@ class StatusPanel(Widget):
             else ("ACTIVE" if self._dev_enabled else "DISABLED")
         )
 
+        guard_color = "#33ff33" if self._guard_enabled else "#888888"
+        if not self._guard_enabled:
+            guard_text = "DISABLED"
+        elif not self._guard_exec_enabled:
+            guard_text = "ACTIVE (ANALYSIS ONLY)"
+        elif self._guard_require_approval:
+            guard_text = "ACTIVE (APPROVAL REQUIRED)"
+        else:
+            guard_text = "ACTIVE"
+
         return (
             f"[bold #33ff33]GhostTrace[/] [dim]v{self.settings.app_version}[/]\n\n"
             f"[dim #558855]Environment:[/] [bold]{self.settings.env}[/]\n"
@@ -114,6 +143,6 @@ class StatusPanel(Widget):
             f" • AI Engine : [bold {ai_color}]{self._ai_status_text}[/]\n"
             f" • Persona   : [bold {ghost_color}]{ghost_text}[/]\n"
             f" • Dev Intel : [bold {dev_color}]{dev_text}[/]\n"
-            " • Guardian  : [dim #667766]STEP 06[/]\n"
+            f" • Guardian  : [bold {guard_color}]{guard_text}[/]\n"
             " • Memory    : [dim #667766]STEP 07[/]\n"
         )

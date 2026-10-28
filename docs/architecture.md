@@ -1,7 +1,7 @@
 # GhostTrace Architecture Specification
 
-> **Status:** Step 05 / 10 — Developer Intelligence & Coding Assistance  
-> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, and Developer Intelligence & Safe Code Analysis are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
+> **Status:** Step 06 / 10 — Command Guardian & Execution Safety  
+> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, Developer Intelligence & Safe Code Analysis, and Command Guardian & Execution Safety are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
 
 ---
 
@@ -15,7 +15,7 @@
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    GhostTrace CLI (Typer)                       │
-│           (ghosttrace, --version, --help, status)               │
+│        (ghosttrace, --version, --help, status, guard)           │
 └───────────────────────────────┬─────────────────────────────────┘
                                 │ launches
 ┌───────────────────────────────▼─────────────────────────────────┐
@@ -41,7 +41,7 @@
         ▼                       ▼                       ▼
 ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
 │  AI Engine   │◄───────┤ Ghost Persona│        │Safety Guard  │
-│(Implemented) │        │(Implemented) │        │  (Planned)   │
+│(Implemented) │        │(Implemented) │        │(Implemented) │
 └───────┬──────┘        └───────┬──────┘        └───────┬──────┘
         │                       │                       │
         │       ┌───────────────┴──────────────┐        │
@@ -124,9 +124,20 @@
   - `responses`: Presentation formatters rendering formatted terminal banners, static analysis reports, and task-oriented summaries.
   - `schemas`: Typed Pydantic models and Enums (`DeveloperIntent`, `ReviewSeverity`, `ReviewFinding`, `CodeAnalysisResult`, `DeveloperContext`, `DeveloperTaskRequest`, `DeveloperTaskResult`).
 
-### `ghosttrace.safety` (Planned — Step 06)
-- **Status:** Package initialized; implementation planned.
-- **Responsibility:** Terminal guardian analyzing shell commands before execution with multi-tier risk classification (`SAFE`, `WARNING`, `DANGEROUS`, `BLOCKED`).
+### `ghosttrace.guardian` / `ghosttrace.safety` (Implemented in Step 06)
+- **Status:** Implemented (Command Guardian & Execution Safety).
+- **Responsibility:** Pre-execution static command analysis, risk classification, approval integrity lifecycle, and restricted subprocess execution.
+- **Components:**
+  - `GuardianEngine`: Subsystem facade coordinating static analysis, explanation generation, cryptographic approval tokens, and controlled execution.
+  - `CommandAnalyzer`: Windows-aware argument parsing preserving backslash path delimiters, resolving executable paths via `shutil.which`, and detecting unquoted shell operators (`&&`, `||`, `;`, `|`, `>`, `<`).
+  - `RiskClassifier`: Multi-dimensional classification evaluating command combinations, arguments, rules, and default medium risk for unknown binaries.
+  - `PatternRules`: Conservative regex heuristics detecting destructive filesystem operations, system modification, registry tampering, suspicious obfuscated PowerShell, remote payload downloads, destructive VCS actions, and package manager risks.
+  - `ExecutionPolicy`: Enforces execution boundaries; strict `shell=False` only; no subshell wrappers (`cmd.exe /c`, `powershell.exe`); HIGH and BLOCKED commands never executed.
+  - `ApprovalManager`: HMAC-SHA256 cryptographically signed tokens tying approval to the exact command text, parsed arguments, working directory, and risk classification. Single-use and short-lived (default 60s TTL).
+  - `ControlledExecutor`: Process execution using `subprocess.Popen` with argument lists, timeout enforcement with hard kill (`proc.kill()`), bounded stdout/stderr capture (default 4,000 chars), and safe Windows console encoding fallback.
+  - `GuardianHistory`: In-memory bounded FIFO session history with credential redaction.
+  - `CommandApprovalModal`: Textual modal screen providing explicit visual confirmation previews before running permitted commands.
+  - `schemas`: Typed Pydantic models (`RiskLevel`: `SAFE`, `LOW`, `MEDIUM`, `HIGH`, `BLOCKED`; `ApprovalStatus`, `ExecutionStatus`, `CommandAnalysis`, `ApprovalRequest`, `ExecutionResult`, `HistoryEntry`, `GuardianStatus`).
 
 ### `ghosttrace.memory` (Planned — Step 07)
 - **Status:** Package initialized; implementation planned.
@@ -145,7 +156,7 @@
 3. **Step 03: Local AI Integration** *(Completed)*
 4. **Step 04: Ghost Personality & Behaviour Engine** *(Completed)*
 5. **Step 05: Developer Intelligence & Coding Assistance** *(Completed)*
-6. **Step 06: Command Guardian & Execution Safety**
+6. **Step 06: Command Guardian & Execution Safety** *(Completed)*
 7. **Step 07: Persistent Memory & Project Context**
 8. **Step 08: System Awareness & Diagnostics**
 9. **Step 09: Haunted Experience & Interactive Events**

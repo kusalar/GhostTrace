@@ -12,7 +12,7 @@ def test_default_configuration() -> None:
     settings = Settings()
 
     assert settings.app_name == "GhostTrace"
-    assert settings.app_version == "0.5.0"
+    assert settings.app_version == "0.6.0"
     assert "haunted" in settings.app_description.lower()
     assert settings.env == "development"
     assert settings.debug is False
@@ -51,6 +51,17 @@ def test_default_configuration() -> None:
     assert settings.dev_static_analysis is True
     assert settings.dev_max_code_chars == 20000
     assert settings.dev_max_context_chars == 30000
+
+    # Verify command guardian default parameters (Step 06)
+    assert settings.guard_enabled is True
+    assert settings.guard_execution_enabled is True
+    assert settings.guard_require_approval is True
+    assert settings.guard_timeout_seconds == 30
+    assert settings.guard_max_timeout_seconds == 120
+    assert settings.guard_max_output_chars == 12000
+    assert settings.guard_history_limit == 50
+    assert settings.guard_block_high_risk is True
+    assert settings.guard_blocked_commands_enabled is True
 
 
 def test_environment_variable_overrides(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -218,3 +229,42 @@ def test_dev_settings_validation() -> None:
 
     with pytest.raises(ValidationError, match="Invalid dev_max_context_chars"):
         Settings(dev_max_context_chars=50)  # must be >= 100
+
+
+def test_guard_settings_validation() -> None:
+    """Verify validation and bounds checking on Guardian settings."""
+    # Disabling approval must raise ValidationError (cannot silently bypass)
+    with pytest.raises(ValidationError, match="guard_require_approval cannot be disabled"):
+        Settings(guard_require_approval=False)
+
+    # Timeout validation (1 to 120)
+    with pytest.raises(ValidationError, match="Invalid guard_timeout_seconds"):
+        Settings(guard_timeout_seconds=0)
+
+    with pytest.raises(ValidationError, match="Invalid guard_timeout_seconds"):
+        Settings(guard_timeout_seconds=200)
+
+    # Max timeout validation (1 to 600)
+    with pytest.raises(ValidationError, match="Invalid guard_max_timeout_seconds"):
+        Settings(guard_max_timeout_seconds=0)
+
+    with pytest.raises(ValidationError, match="Invalid guard_max_timeout_seconds"):
+        Settings(guard_max_timeout_seconds=700)
+
+    # Output chars validation (100 to 1,000,000)
+    with pytest.raises(ValidationError, match="Invalid guard_max_output_chars"):
+        Settings(guard_max_output_chars=50)
+
+    with pytest.raises(ValidationError, match="Invalid guard_max_output_chars"):
+        Settings(guard_max_output_chars=2_000_000)
+
+    # History limit validation (1 to 500)
+    with pytest.raises(ValidationError, match="Invalid guard_history_limit"):
+        Settings(guard_history_limit=0)
+
+    with pytest.raises(ValidationError, match="Invalid guard_history_limit"):
+        Settings(guard_history_limit=600)
+
+    # Timeout clamped to max_timeout if larger
+    s = Settings(guard_timeout_seconds=100, guard_max_timeout_seconds=50)
+    assert s.guard_timeout_seconds == 50

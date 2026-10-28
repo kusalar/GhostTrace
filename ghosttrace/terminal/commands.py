@@ -57,7 +57,7 @@ def handle_about(args: list[str], context: CommandContext) -> CommandResult:
         "  • Architecture : Fully offline-first, local CPU inference",
         "  • Platform     : Windows 10/11 64-bit native",
         "  • Target Spec  : Intel Core i3-1115G4, 12 GB RAM, Intel UHD graphics",
-        "  • Status       : Step 05 / 10 — Developer Intelligence & Coding Assistance",
+        "  • Status       : Step 06 / 10 — Command Guardian & Execution Safety",
     ]
     return CommandResult(success=True, output="\n".join(lines))
 
@@ -77,6 +77,12 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
     dev_engine = context.dev_engine
     if dev_engine is None:
         dev_engine = ai_engine.developer_engine
+
+    guard_engine = context.guardian_engine
+    if guard_engine is None:
+        from ghosttrace.guardian.engine import GuardianEngine
+
+        guard_engine = GuardianEngine(context.settings)
 
     ai_status = ai_engine.get_status()
     if not ai_status.runtime_available:
@@ -100,6 +106,15 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         else ("[OK] ACTIVE" if dev_engine.is_enabled else "[!] DISABLED")
     )
 
+    if not guard_engine.is_enabled:
+        guard_status_str = "[!] DISABLED"
+    elif not guard_engine.is_execution_enabled:
+        guard_status_str = "[OK] ACTIVE (ANALYSIS ONLY)"
+    elif guard_engine.policy.require_approval:
+        guard_status_str = "[OK] ACTIVE (APPROVAL REQUIRED)"
+    else:
+        guard_status_str = "[OK] ACTIVE"
+
     lines = [
         "APPLICATION SUBSYSTEM STATUS",
         "==================================================",
@@ -114,7 +129,7 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         f"  Local AI Engine (Step 03)   : {ai_step_str}",
         f"  Ghost Persona (Step 04)     : {ghost_status_str}",
         f"  Developer Intel (Step 05)   : {dev_status_str}",
-        "  Command Guardian (Step 06)  : [..] NOT IMPLEMENTED",
+        f"  Command Guardian (Step 06)  : {guard_status_str}",
         "  Persistent Memory (Step 07) : [..] NOT IMPLEMENTED",
         "  System Diagnostics (Step 08): [..] NOT IMPLEMENTED",
         "==================================================",
@@ -581,6 +596,207 @@ def handle_dev(args: list[str], context: CommandContext) -> CommandResult:
     )
 
 
+def handle_guard(args: list[str], context: CommandContext) -> CommandResult:
+    """Manage Command Guardian, static command analysis, approval, and execution safety."""
+    guard_engine = context.guardian_engine
+    if guard_engine is None:
+        from ghosttrace.guardian.engine import GuardianEngine
+
+        guard_engine = GuardianEngine(context.settings)
+        context.guardian_engine = guard_engine
+
+    if not args:
+        subcommand = "status"
+        content_args: list[str] = []
+    else:
+        subcommand = args[0].lower()
+        content_args = args[1:]
+
+    if subcommand == "help":
+        lines = [
+            "GHOSTTRACE COMMAND GUARDIAN",
+            "==================================================",
+            "Safety-focused subsystem protecting your terminal and workspace from accidental",
+            "destructive operations. Restricted execution model: shell=False, no shell wrappers,",
+            "bounded stdout/stderr, and explicit per-command user approval.",
+            "",
+            "COMMAND REFERENCE:",
+            "  guard                      Display Guardian subsystem status and configuration.",
+            "  guard help                 Show this Guardian help and command reference.",
+            "  guard status               Display active execution policy and settings.",
+            "  guard analyze <command>    Statically analyze command risk without executing.",
+            "  guard explain <command>    Explain command purpose and risk warnings.",
+            "  guard run <command>        Analyze command and present an approval preview.",
+            "  guard approve [token]      Confirm and execute an approved command (one-time).",
+            "  guard cancel [token]       Cancel a pending command approval request.",
+            "  guard history              Display bounded session execution history.",
+            "  guard clear                Clear session execution history.",
+            "  guard enable               Enable Command Guardian subsystem.",
+            "  guard disable              Disable Command Guardian and halt command execution.",
+            "",
+            "EXAMPLES:",
+            "  guard analyze git status",
+            "  guard explain git reset --hard",
+            "  guard run python --version",
+            "  guard approve",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "status":
+        status = guard_engine.get_status()
+        lines = [
+            "COMMAND GUARDIAN & EXECUTION SAFETY STATUS",
+            "==================================================",
+            f"  Guardian Subsystem : {'ACTIVE' if status.is_enabled else 'DISABLED'}",
+            (
+                "  Execution Permitted: "
+                f"{'YES' if status.is_execution_enabled else 'NO (ANALYSIS ONLY)'}"
+            ),
+            f"  Approval Enforced  : {'YES (STRICT)' if status.requires_approval else 'NO'}",
+            f"  Block High Risk    : {'YES' if status.block_high_risk else 'NO'}",
+            (
+                f"  Default Timeout    : {status.timeout_seconds}s "
+                f"(max: {status.max_timeout_seconds}s)"
+            ),
+            f"  Max Output Chars   : {status.max_output_chars}",
+            f"  Pending Approvals  : {status.pending_approval_count}",
+            f"  Session History    : {status.history_count} / {status.history_limit} records",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "enable":
+        guard_engine.enable()
+        return CommandResult(success=True, output="Command Guardian subsystem enabled.")
+
+    if subcommand == "disable":
+        guard_engine.disable()
+        return CommandResult(
+            success=True,
+            output="Command Guardian subsystem disabled. Controlled command execution is halted.",
+        )
+
+    if subcommand == "history":
+        entries = guard_engine.get_history()
+        if not entries:
+            return CommandResult(
+                success=True,
+                output="No commands executed in this session yet.",
+            )
+        return CommandResult(success=True, output=guard_engine.history.format_table())
+
+    if subcommand == "clear":
+        guard_engine.clear_history()
+        return CommandResult(
+            success=True,
+            output="Guardian session execution history cleared.",
+        )
+
+    if subcommand == "analyze":
+        if not content_args:
+            return CommandResult(
+                success=False,
+                output=(
+                    "Usage: guard analyze <command>\n"
+                    "Statically analyzes command risk without execution."
+                ),
+            )
+        cmd_str = " ".join(f'"{a}"' if " " in a else a for a in content_args)
+        from ghosttrace.guardian.explanations import format_command_analysis
+
+        analysis = guard_engine.analyze(cmd_str)
+        return CommandResult(success=True, output=format_command_analysis(analysis))
+
+    if subcommand == "explain":
+        if not content_args:
+            return CommandResult(
+                success=False,
+                output=(
+                    "Usage: guard explain <command>\nExplains command purpose and highlights risks."
+                ),
+            )
+        cmd_str = " ".join(f'"{a}"' if " " in a else a for a in content_args)
+        explanation = guard_engine.explain(cmd_str)
+        return CommandResult(success=True, output=explanation)
+
+    if subcommand == "run":
+        if not content_args:
+            return CommandResult(
+                success=False,
+                output=(
+                    "Usage: guard run <command>\n"
+                    "Analyzes command and requests approval before execution."
+                ),
+            )
+        cmd_str = " ".join(f'"{a}"' if " " in a else a for a in content_args)
+        from ghosttrace.guardian.explanations import format_approval_preview
+
+        try:
+            req = guard_engine.request_approval(cmd_str)
+            preview = format_approval_preview(
+                req,
+                timeout_seconds=guard_engine.policy.timeout_seconds,
+                max_output_chars=guard_engine.policy.max_output_chars,
+            )
+            return CommandResult(
+                success=True,
+                output=preview,
+                command_name="guard_run",
+            )
+        except PermissionError as exc:
+            return CommandResult(
+                success=False,
+                output=f"Execution request rejected:\n{exc}",
+                command_name="guard_run",
+            )
+
+    if subcommand in ("approve", "confirm"):
+        from ghosttrace.guardian.explanations import format_execution_result
+        from ghosttrace.guardian.schemas import ExecutionStatus
+
+        token = content_args[0].strip() if content_args else None
+        if not token:
+            latest = guard_engine.approval_mgr.get_latest_pending()
+            if not latest:
+                return CommandResult(
+                    success=False,
+                    output="No pending approval request found. Use 'guard run <command>' first.",
+                )
+            token = latest.token
+            cmd_text = latest.analysis.original_command
+        else:
+            req = guard_engine.approval_mgr.get_request(token)
+            if not req:
+                return CommandResult(
+                    success=False,
+                    output=f"Approval request '{token}' not found, expired, or already consumed.",
+                )
+            cmd_text = req.analysis.original_command
+
+        result = guard_engine.execute_approved(token=token, command=cmd_text)
+        formatted = format_execution_result(result)
+        return CommandResult(
+            success=(result.status == ExecutionStatus.SUCCESS),
+            output=formatted,
+        )
+
+    if subcommand == "cancel":
+        token = content_args[0].strip() if content_args else None
+        success, msg = guard_engine.cancel_approval(token)
+        return CommandResult(success=success, output=msg)
+
+    return CommandResult(
+        success=False,
+        output=(
+            f"Unknown guard subcommand '{subcommand}'. Available:\n"
+            "  guard, guard help, guard status, guard analyze, guard explain,\n"
+            "  guard run, guard approve, guard cancel, guard history, guard clear,\n"
+            "  guard enable, guard disable"
+        ),
+    )
+
+
 def create_default_registry() -> CommandRegistry:
     """Create and populate a CommandRegistry with all standard GhostTrace commands."""
     registry = CommandRegistry()
@@ -660,6 +876,18 @@ def create_default_registry() -> CommandRegistry:
             description="Display and manage the local AI inference engine.",
             usage="ai [status|load|unload|info|clear]",
             handler=handle_ai,
+        )
+    )
+    registry.register(
+        Command(
+            name="guard",
+            description="Command Guardian & execution safety subsystem.",
+            usage=(
+                "guard [help|status|analyze|explain|run|approve|"
+                "cancel|history|clear|enable|disable]"
+            ),
+            aliases=["guardian", "safety"],
+            handler=handle_guard,
         )
     )
     registry.register(

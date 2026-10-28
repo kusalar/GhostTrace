@@ -16,10 +16,14 @@ from ghosttrace.ai.engine import AIEngine
 from ghosttrace.config.settings import Settings, get_settings
 from ghosttrace.developer.engine import DeveloperEngine
 from ghosttrace.ghost.engine import GhostEngine
+from ghosttrace.guardian.engine import GuardianEngine
+from ghosttrace.guardian.explanations import format_execution_result
+from ghosttrace.guardian.schemas import ExecutionStatus
 from ghosttrace.terminal.command_parser import parse_command_line
-from ghosttrace.terminal.command_registry import CommandContext, CommandRegistry
+from ghosttrace.terminal.command_registry import CommandContext, CommandRegistry, CommandResult
 from ghosttrace.terminal.commands import create_default_registry
 from ghosttrace.terminal.history import SessionHistory
+from ghosttrace.terminal.widgets.approval_modal import CommandApprovalModal
 from ghosttrace.terminal.widgets.conversation import ConversationLog
 from ghosttrace.terminal.widgets.header import GhostTraceHeader
 from ghosttrace.terminal.widgets.input import CommandInput
@@ -84,6 +88,7 @@ class GhostTraceApp(App[int]):
         ai_engine: AIEngine | None = None,
         ghost_engine: GhostEngine | None = None,
         dev_engine: DeveloperEngine | None = None,
+        guardian_engine: GuardianEngine | None = None,
         **kwargs: object,
     ) -> None:
         super().__init__(**kwargs)
@@ -112,10 +117,22 @@ class GhostTraceApp(App[int]):
         else:
             self.dev_engine = DeveloperEngine(self.settings, ghost_engine=self.ghost_engine)
 
+        if guardian_engine is not None:
+            self.guardian_engine = guardian_engine
+        elif (
+            ai_engine is not None
+            and getattr(ai_engine, "guardian_engine", None) is not None
+            and isinstance(ai_engine.guardian_engine, GuardianEngine)
+        ):
+            self.guardian_engine = ai_engine.guardian_engine
+        else:
+            self.guardian_engine = GuardianEngine(self.settings)
+
         self.ai_engine = ai_engine or AIEngine(
             self.settings,
             ghost_engine=self.ghost_engine,
             developer_engine=self.dev_engine,
+            guardian_engine=self.guardian_engine,
         )
         self.context = CommandContext(
             settings=self.settings,
@@ -123,8 +140,10 @@ class GhostTraceApp(App[int]):
             ai_engine=self.ai_engine,
             ghost_engine=self.ghost_engine,
             dev_engine=self.dev_engine,
+            guardian_engine=self.guardian_engine,
         )
         self.is_generating = False
+        self.is_executing_command = False
 
     def compose(self) -> ComposeResult:
         """Compose interface sections: Header, Conversation + Status, Input bar, Footer."""
@@ -192,6 +211,16 @@ class GhostTraceApp(App[int]):
                     is_active=self.dev_engine.is_enabled,
                     static_analysis=self.dev_engine._static_analysis_enabled,
                 )
+
+            # Update Command Guardian telemetry
+            if self.guardian_engine is not None and isinstance(
+                self.guardian_engine, GuardianEngine
+            ):
+                status_panel.update_guardian_status(
+                    is_active=self.guardian_engine.is_enabled,
+                    execution_enabled=self.guardian_engine.is_execution_enabled,
+                    require_approval=self.guardian_engine.policy.require_approval,
+                )
         except Exception as exc:
             logger.debug("Could not refresh subsystem status: %s", exc)
 
@@ -218,6 +247,40 @@ class GhostTraceApp(App[int]):
             else:
                 conv_log.add_exchange(raw_text, result)
 
+            if result.command_name == "guard_run" and result.success:
+                latest_req = self.guardian_engine.approval_mgr.get_latest_pending()
+                if latest_req is not None:
+
+                    def _on_approval_decision(approved: bool) -> None:
+                        if approved:
+                            self._dispatch_approved_execution(
+                                latest_req.token,
+                                latest_req.analysis.original_command,
+                            )
+                        else:
+                            self.guardian_engine.cancel_approval(latest_req.token)
+                            output = (
+                                f"Execution of '{latest_req.analysis.original_command}' "
+                                "was cancelled."
+                            )
+                            conv_log.add_exchange(
+                                f"guard cancel {latest_req.token}",
+                                CommandResult(
+                                    success=True,
+                                    output=output,
+                                ),
+                            )
+                            self._refresh_subsystem_status()
+
+                    self.push_screen(
+                        CommandApprovalModal(
+                            request=latest_req,
+                            timeout_seconds=self.guardian_engine.policy.timeout_seconds,
+                            max_output_chars=self.guardian_engine.policy.max_output_chars,
+                        ),
+                        _on_approval_decision,
+                    )
+
             if result.should_exit:
                 self.exit(0)
             return
@@ -231,6 +294,37 @@ class GhostTraceApp(App[int]):
             return
 
         self._dispatch_ai_query(raw_text)
+
+    @work(thread=True)
+    def _dispatch_approved_execution(self, token: str, command: str) -> None:
+        """Execute approved command in a background worker thread."""
+        self.is_executing_command = True
+        conv_log = self.query_one("#conversation-log", ConversationLog)
+
+        try:
+            exec_res = self.guardian_engine.execute_approved(token=token, command=command)
+            formatted = format_execution_result(exec_res)
+            self.call_from_thread(
+                conv_log.add_exchange,
+                f"guard approve {token}",
+                CommandResult(
+                    success=(exec_res.status == ExecutionStatus.SUCCESS),
+                    output=formatted,
+                ),
+            )
+        except Exception as exc:
+            logger.exception("Error during approved command background execution: %s", exc)
+            self.call_from_thread(
+                conv_log.add_exchange,
+                f"guard approve {token}",
+                CommandResult(
+                    success=False,
+                    output=f"Execution failed: {exc}",
+                ),
+            )
+        finally:
+            self.is_executing_command = False
+            self.call_from_thread(self._refresh_subsystem_status)
 
     @work(thread=True)
     def _dispatch_ai_query(self, query: str) -> None:

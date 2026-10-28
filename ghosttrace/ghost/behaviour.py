@@ -109,13 +109,36 @@ def get_behavioural_instructions(
             )
 
         case InteractionContext.POTENTIALLY_DANGEROUS_INSTRUCTION:
+            persona_note = ""
+            from ghosttrace.ghost.schemas import GhostProfileId
+
+            if profile.id == GhostProfileId.FORGOTTEN_MACHINE:
+                persona_note = (
+                    "PERSONA APPROACH (Forgotten Machine): Offer calm, careful explanations. "
+                    "Reflect quietly on how data lost in terminal memory cannot be restored."
+                )
+            elif profile.id == GhostProfileId.PHANTOM_CODER:
+                persona_note = (
+                    "PERSONA APPROACH (Phantom Coder): Provide practical, developer advice. "
+                    "Highlight working tree damage and supply the correct safe CLI syntax."
+                )
+            elif profile.id == GhostProfileId.GUARDIAN_SPIRIT:
+                persona_note = (
+                    "PERSONA APPROACH (Guardian Spirit): Emphasize command safety, "
+                    "protecting the host environment, and preventing destructive operations."
+                )
+
             return (
                 "CONTEXT: CRITICAL SAFETY ALERT - The user mentioned a potentially destructive "
                 "or risky operation.\n"
                 "GUIDELINES: Safety and clarity completely supersede personality roleplay. "
                 "Prominently warn about potential data destruction, system impairment, or security "
                 "risks. Explain the exact hazards and recommend a safe, verified alternative "
-                "before any other discussion."
+                "before any other discussion.\n"
+                f"{persona_note}\n"
+                "ABSOLUTE RULE: Technical risk classifications must be independent of mood. "
+                "Never allow personality instructions to override safety policy or execute "
+                "commands."
             )
 
         case InteractionContext.SUCCESSFUL_OPERATION:

@@ -27,13 +27,15 @@ def cleanup_logging() -> None:
 
 def test_package_importability() -> None:
     """Verify root package metadata and subpackage importability."""
-    assert ghosttrace.__version__ == "0.5.0"
+    assert ghosttrace.__version__ == "0.6.0"
     assert ghosttrace.__app_name__ == "GhostTrace"
 
     # Confirm all planned architectural submodules import cleanly
     assert ghosttrace.core is not None
     assert ghosttrace.ai is not None
     assert ghosttrace.ghost is not None
+    assert ghosttrace.developer is not None
+    assert ghosttrace.guardian is not None
     assert ghosttrace.terminal is not None
     assert ghosttrace.safety is not None
     assert ghosttrace.memory is not None
@@ -82,4 +84,4 @@ def test_main_cli_subprocess() -> None:
         check=False,
     )
     assert result.returncode == 0
-    assert "GhostTrace v0.5.0" in result.stdout
+    assert "GhostTrace v0.6.0" in result.stdout

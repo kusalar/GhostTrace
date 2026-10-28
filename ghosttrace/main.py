@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Annotated
 
 import typer
 
@@ -46,6 +47,84 @@ def default_entry(
 def status_command() -> None:
     """Display system status non-interactively via Rich."""
     render_cli_status()
+
+
+guard_app = typer.Typer(
+    name="guard",
+    help="Command Guardian & execution safety subsystem.",
+    no_args_is_help=False,
+)
+app.add_typer(guard_app, name="guard")
+
+
+@guard_app.callback(invoke_without_command=True)
+def guard_default(ctx: typer.Context) -> None:
+    """Show Guardian status and quick help."""
+    if ctx.invoked_subcommand is None:
+        from rich.console import Console
+
+        from ghosttrace.guardian.engine import GuardianEngine
+
+        engine = GuardianEngine()
+        status = engine.get_status()
+        console = Console()
+        console.print(
+            f"[bold #00ff66]Guardian:[/] {'ACTIVE' if status.is_enabled else 'DISABLED'} | "
+            f"Risk block high: {status.block_high_risk} | Timeout: {status.timeout_seconds}s"
+        )
+
+
+@guard_app.command(name="status")
+def guard_status() -> None:
+    """Display active Guardian policy and execution configuration."""
+    from rich.console import Console
+
+    from ghosttrace.guardian.engine import GuardianEngine
+
+    engine = GuardianEngine()
+    status = engine.get_status()
+    console = Console()
+    console.print(f"Guardian Subsystem : {'ACTIVE' if status.is_enabled else 'DISABLED'}")
+    console.print(
+        f"Execution Permitted: {'YES' if status.is_execution_enabled else 'NO (ANALYSIS ONLY)'}"
+    )
+    console.print(f"Approval Enforced  : {'YES (STRICT)' if status.requires_approval else 'NO'}")
+    console.print(f"Block High Risk    : {'YES' if status.block_high_risk else 'NO'}")
+    console.print(
+        f"Default Timeout    : {status.timeout_seconds}s (max: {status.max_timeout_seconds}s)"
+    )
+
+
+@guard_app.command(name="analyze")
+def guard_analyze(
+    command: Annotated[list[str], typer.Argument(help="Command string to analyze.")],
+) -> None:
+    """Statically analyze command risk without execution."""
+    from rich.console import Console
+
+    from ghosttrace.guardian.engine import GuardianEngine
+    from ghosttrace.guardian.explanations import format_command_analysis
+
+    cmd_str = " ".join(command)
+    engine = GuardianEngine()
+    analysis = engine.analyze(cmd_str)
+    console = Console()
+    console.print(format_command_analysis(analysis))
+
+
+@guard_app.command(name="explain")
+def guard_explain(
+    command: Annotated[list[str], typer.Argument(help="Command string to explain.")],
+) -> None:
+    """Explain command purpose, side effects, and risk warnings."""
+    from rich.console import Console
+
+    from ghosttrace.guardian.engine import GuardianEngine
+
+    cmd_str = " ".join(command)
+    engine = GuardianEngine()
+    console = Console()
+    console.print(engine.explain(cmd_str))
 
 
 def main(args: list[str] | None = None) -> int:

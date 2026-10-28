@@ -84,7 +84,11 @@ def render_cli_status(settings: Settings | None = None) -> None:
         "04", "Ghost Persona & Behaviour Engine", "[bold #00ff66]IMPLEMENTED[/]"
     )
     subsystem_table.add_row("05", "Developer Intel & Coding Assist", "[bold #00ff66]ACTIVE[/]")
-    subsystem_table.add_row("06", "Command Guardian & Safety", "[dim #778877]NOT IMPLEMENTED[/]")
+    subsystem_table.add_row(
+        "06",
+        "Command Guardian & Safety",
+        "[bold #00ff66]ACTIVE[/]" if settings.guard_enabled else "[dim #ff5555]DISABLED[/]",
+    )
     subsystem_table.add_row("07", "Persistent Memory & SQLite", "[dim #778877]NOT IMPLEMENTED[/]")
     subsystem_table.add_row(
         "08", "System Diagnostics & Telemetry", "[dim #778877]NOT IMPLEMENTED[/]"

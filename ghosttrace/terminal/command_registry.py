@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from ghosttrace.ai.engine import AIEngine
     from ghosttrace.developer.engine import DeveloperEngine
     from ghosttrace.ghost.engine import GhostEngine
+    from ghosttrace.guardian.engine import GuardianEngine
 
 logger = logging.getLogger("ghosttrace.terminal.commands")
 
@@ -30,6 +31,7 @@ class CommandContext:
     ai_engine: AIEngine | None = None
     ghost_engine: GhostEngine | None = None
     dev_engine: DeveloperEngine | None = None
+    guardian_engine: GuardianEngine | None = None
 
 
 @dataclass
@@ -128,7 +130,8 @@ class CommandRegistry:
 
         try:
             result = command.handler(parsed.args, context)
-            result.command_name = command.name
+            if not result.command_name:
+                result.command_name = command.name
             return result
         except Exception as exc:
             logger.exception("Error executing command '%s' with args %s", command.name, parsed.args)
