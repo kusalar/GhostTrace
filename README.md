@@ -60,9 +60,9 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 | **Developer Intelligence** | **Completed** | Code explanation, debugging, review, generation, refactoring, test generation, and safe local static analysis |
 | **Command Guardian** | **Completed** | Command risk analysis, dangerous pattern rules, HMAC-SHA256 approval tokens, controlled subprocess execution |
 | **Persistent Memory & Projects** | **Completed** | SQLite persistence (WAL mode), FTS5 full-text search, user-controlled memory CRUD, read-only project indexing |
-| **System Awareness & Diagnostics** | **Completed** | Win32 & stdlib resource telemetry, health inspection, diagnostic reporting, and passive AI context injection |
-| **Testing Suite** | **Completed** | Deterministic unit and async TUI tests (404 tests, 100% passing) |
-| *Haunted Experience* | *Planned* | Step 09: Interactive events and atmospheric haunting |
+| **System Awareness & Diagnostics** | **Completed** | Win32 & stdlib resource telemetry, health inspection across 12 subsystems, diagnostic reporting |
+| **Haunted Experience** | **Completed** | Step 09: Atmospheric manifestations, ghost reactions, 4 experience modes (normal, ambient, haunted, focus), 9 event categories |
+| **Testing Suite** | **Completed** | Deterministic unit, async TUI, and integration tests (446 tests, 100% passing) |
 | *Packaging & Hardening* | *Planned* | Step 10: Production release packaging and distribution |
 
 ---
@@ -76,8 +76,8 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 - [x] **Step 05: Developer Intelligence & Coding Assistance**
 - [x] **Step 06: Command Guardian & Execution Safety**
 - [x] **Step 07: Persistent Memory & Project Context**
-- [x] **Step 08: System Awareness & Diagnostics** *(Current)*
-- [ ] **Step 09: Haunted Experience & Interactive Events**
+- [x] **Step 08: System Awareness & Diagnostics**
+- [x] **Step 09: Haunted Experience & Interactive Events** *(Current)*
 - [ ] **Step 10: Testing, Optimization, Packaging & Release**
 
 ---
@@ -198,20 +198,32 @@ Inspect host telemetry, subsystem health, and diagnostics non-interactively:
 # Display full system and resource telemetry
 ghosttrace system overview
 
-# Inspect operational health across all 11 internal subsystems
+# Inspect operational health across all 12 internal subsystems
 ghosttrace system health
 
 # Generate a diagnostic report (and export to JSON if enabled)
 ghosttrace system diagnostics
 ```
 
-### 7.5 Version Information
+### 7.5 Haunted Experience CLI Commands
+Inspect experience subsystem status and preview atmospheric events non-interactively:
 ```powershell
-ghosttrace --version
-# Output: GhostTrace v0.8.0
+# Display active experience mode, intensity, and session budget
+ghosttrace haunt status
+
+# Harmlessly preview an atmospheric event from a specific category
+ghosttrace haunt preview greeting
+ghosttrace haunt preview idle
+ghosttrace haunt preview special
 ```
 
-### 7.6 Help Information
+### 7.6 Version Information
+```powershell
+ghosttrace --version
+# Output: GhostTrace v0.9.0
+```
+
+### 7.7 Help Information
 ```powershell
 ghosttrace --help
 ```
@@ -255,9 +267,10 @@ altering its original implementation...
 | `memory` (or `mem`) | `memory [help\|status\|list\|show\|save\|edit\|delete\|clear\|search\|stats\|export\|import]` | Persistent SQLite conversation and user memory management. |
 | `project` (or `proj`) | `project [help\|status\|list\|add\|use\|scan\|refresh\|info\|files\|search\|clear\|remove]` | Safe read-only project context registration, scanning & indexing. |
 | `system` (or `sys`) | `system [help\|overview\|status\|cpu\|memory\|disk\|processes\|uptime\|health\|diagnostics]` | System awareness, host telemetry, and internal health diagnostics. |
+| `haunt` (or `hunt`) | `haunt [help\|status\|mode\|intensity\|events\|history\|clear\|idle\|preview\|enable\|disable]` | Haunted experience mode, intensity, event history, and previews. |
 | `about` (or `info`) | `about` | Displays project vision, triple identity, and target specifications. |
 | `status` | `status` | Displays system status distinguishing implemented from planned features. |
-| `version` (or `v`) | `version` | Displays the GhostTrace version (`v0.8.0`). |
+| `version` (or `v`) | `version` | Displays the GhostTrace version (`v0.9.0`). |
 | `clear` (or `cls`) | `clear` | Clears the scrollable conversation log. |
 | `history` (or `hist`) | `history` | Lists commands entered during the active session. |
 | `ghost` | `ghost` | Displays ghost personality status, profiles, and mood telemetry. |
@@ -465,8 +478,22 @@ Every command execution requires explicit approval:
 - `system disk` — Storage capacity and free space for application data and project drives.
 - `system processes` (or `proc`) — Running system process count, GhostTrace process ID, and memory footprint (`WorkingSetSize`).
 - `system uptime` — Windows system uptime and GhostTrace application session duration.
-- `system health` — Operational health status inspection across all 11 internal subsystems.
+- `system health` — Operational health status inspection across all 12 internal subsystems.
 - `system diagnostics` — Generates a diagnostic report with active operational warnings (and optional JSON export).
+
+#### Haunted Experience & Interactive Events Command Family (`haunt` / `hunt`)
+
+- `haunt` (or `haunt status`) — Displays active experience mode, event intensity, cooldown, and session event budget.
+- `haunt help` — Complete reference for haunted experience and atmospheric event subcommands.
+- `haunt mode [name]` — Inspects or switches the experience mode (`normal`, `ambient`, `haunted`, `focus`).
+- `haunt intensity [lvl]` — Adjusts event frequency and cooldown scaling (`low`: 1.5x, `medium`: 1.0x, `high`: 0.6x).
+- `haunt events` — Lists all supported supernatural event categories, event IDs, priorities, and counts.
+- `haunt history` — Displays the bounded session event history table (session-only, strictly zero SQLite writes).
+- `haunt clear` — Clears the in-memory session event history log.
+- `haunt idle [on|off]` — Toggles subtle atmospheric whisper messages during genuine terminal inactivity.
+- `haunt preview [category]` — Harmlessly previews an atmospheric event from a specific category without recording to history.
+- `haunt enable` — Re-enables the haunted experience subsystem.
+- `haunt disable` — Disables the haunted experience subsystem.
 
 ### Keyboard Shortcuts
 
@@ -483,24 +510,25 @@ Every command execution requires explicit approval:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ GHOSTTRACE v0.8.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
+│ GHOSTTRACE v0.9.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
 ├──────────────────────────────────────────────┬─────────────────────────┤
 │ ConversationLog                              │ StatusPanel             │
 │                                              │                         │
-│ [Something has awakened inside this terminal]│ GhostTrace v0.8.0       │
+│ [Something has awakened inside this terminal]│ GhostTrace v0.9.0       │
 │                                              │                         │
 │ ghost> system overview                       │ Environment: development│
 │ SYSTEM & RESOURCE OVERVIEW                   │ Commands Run: 6         │
 │ • Host Platform: Windows 10 (AMD64)          │                         │
 │ • CPU: Intel Core i3-1115G4 (4 cores) — 12%  │ Subsystems:             │
 │ • RAM: 6.4 GB free of 11.8 GB (45.7% used)   │ • Foundation : OK       │
-│ • Health: [HEALTHY] All 11 subsystems healthy│ • Interface  : ACTIVE   │
+│ • Health: [HEALTHY] All 12 subsystems healthy│ • Interface  : ACTIVE   │
 │                                              │ • AI Engine  : READY    │
 │ ghost> project use GhostTrace                │ • Persona    : ACTIVE   │
 │ [Active project switched to 'GhostTrace']    │ • Dev Intel  : ACTIVE   │
 │                                              │ • Guardian   : ACTIVE   │
 │ ghost> guard run python --version            │ • Memory     : ACTIVE   │
 │ [Command Approval Modal Displayed]           │ • System     : HEALTHY  │
+│                                              │ • Haunt      : HAUNTED (med)│
 │                                              │ • Project    : GhostTrace│
 ├──────────────────────────────────────────────┴─────────────────────────┤
 │ ghost> [ Enter command or ask a programming question...              ] │

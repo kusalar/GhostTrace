@@ -99,7 +99,11 @@ def render_cli_status(settings: Settings | None = None) -> None:
         "System Diagnostics & Telemetry",
         "[bold #00ff66]ACTIVE[/]" if settings.system_enabled else "[dim #ff5555]DISABLED[/]",
     )
-    subsystem_table.add_row("09", "Haunted Events Engine", "[dim #778877]NOT IMPLEMENTED[/]")
+    subsystem_table.add_row(
+        "09",
+        "Haunted Experience & Events",
+        "[bold #00ff66]ACTIVE[/]" if settings.haunt_enabled else "[dim #ff5555]DISABLED[/]",
+    )
     subsystem_table.add_row(
         "10", "Packaging, Hardening & Release", "[dim #778877]NOT IMPLEMENTED[/]"
     )

@@ -354,6 +354,31 @@ class HealthRegistry:
             checked_at=time.time(),
         )
 
+    def check_haunted_experience(self, haunt_engine: object | None = None) -> SubsystemHealth:
+        """Inspect Haunted Experience & Atmospheric Events subsystem status."""
+        if not getattr(self.settings, "haunt_enabled", True):
+            return SubsystemHealth(
+                name="haunted_experience",
+                status=HealthStatus.DISABLED,
+                details="Haunted experience disabled in settings",
+                checked_at=time.time(),
+            )
+
+        mode = getattr(self.settings, "haunt_mode", "normal")
+        intensity = getattr(self.settings, "haunt_intensity", "medium")
+        idle = getattr(self.settings, "haunt_idle_events", False)
+
+        details = (
+            f"Mode: '{mode}', Intensity: '{intensity}', "
+            f"Idle events: {'enabled' if idle else 'disabled'}"
+        )
+        return SubsystemHealth(
+            name="haunted_experience",
+            status=HealthStatus.HEALTHY,
+            details=details,
+            checked_at=time.time(),
+        )
+
     def check_all(
         self,
         ai_engine: object | None = None,
@@ -361,6 +386,7 @@ class HealthRegistry:
         dev_engine: object | None = None,
         guardian_engine: object | None = None,
         memory_engine: object | None = None,
+        haunt_engine: object | None = None,
     ) -> SystemHealthReport:
         """Execute all non-destructive subsystem health checks and compute overall state."""
         subsystems: dict[str, SubsystemHealth] = {}
@@ -376,6 +402,7 @@ class HealthRegistry:
         subsystems["ghost_persona"] = self.check_ghost_persona(ghost_engine)
         subsystems["developer_assistant"] = self.check_developer_assistant(dev_engine)
         subsystems["command_guardian"] = self.check_command_guardian(guardian_engine)
+        subsystems["haunted_experience"] = self.check_haunted_experience(haunt_engine)
 
         # Derive overall health status
         statuses = [s.status for s in subsystems.values()]

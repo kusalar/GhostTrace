@@ -107,7 +107,7 @@ def test_ghost_command_unknown_subcommand(sample_context):
 
 def test_step_04_status_and_about_commands(sample_context):
     about_res = handle_about([], sample_context)
-    assert "Step 08 / 10 — System Awareness & Diagnostics" in str(about_res.output)
+    assert "Step 09 / 10 — Haunted Experience & Interactive Events" in str(about_res.output)
 
     status_res = handle_status([], sample_context)
     assert "Ghost Persona (Step 04)     : [OK] ACTIVE" in str(status_res.output)

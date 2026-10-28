@@ -59,7 +59,7 @@ def handle_about(args: list[str], context: CommandContext) -> CommandResult:
         "  • Architecture : Fully offline-first, local CPU inference",
         "  • Platform     : Windows 10/11 64-bit native",
         "  • Target Spec  : Intel Core i3-1115G4, 12 GB RAM, Intel UHD graphics",
-        "  • Status       : Step 08 / 10 — System Awareness & Diagnostics",
+        "  • Status       : Step 09 / 10 — Haunted Experience & Interactive Events",
     ]
     return CommandResult(success=True, output="\n".join(lines))
 
@@ -97,6 +97,12 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         from ghosttrace.system.engine import SystemEngine
 
         sys_engine = SystemEngine(context.settings)
+
+    haunt_engine = context.haunt_engine
+    if haunt_engine is None:
+        from ghosttrace.haunt.engine import HauntEngine
+
+        haunt_engine = HauntEngine(context.settings, ghost_engine=context.ghost_engine)
 
     ai_status = ai_engine.get_status()
     if not ai_status.runtime_available:
@@ -138,6 +144,11 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
 
     sys_status_str = "[!] DISABLED" if not sys_engine.is_enabled else "[OK] ACTIVE (WIN32 / STDLIB)"
 
+    if not haunt_engine.is_enabled:
+        haunt_status_str = "[!] DISABLED"
+    else:
+        haunt_status_str = f"[OK] ACTIVE ({haunt_engine.mode.value.upper()})"
+
     lines = [
         "APPLICATION SUBSYSTEM STATUS",
         "==================================================",
@@ -155,6 +166,7 @@ def handle_status(args: list[str], context: CommandContext) -> CommandResult:
         f"  Command Guardian (Step 06)  : {guard_status_str}",
         f"  Persistent Memory (Step 07) : {mem_status_str}",
         f"  System Diagnostics (Step 08): {sys_status_str}",
+        f"  Haunted Events (Step 09)    : {haunt_status_str}",
         "==================================================",
     ]
     return CommandResult(success=True, output="\n".join(lines))
@@ -1320,6 +1332,12 @@ def handle_system(args: list[str], context: CommandContext) -> CommandResult:
 
         sys_engine = SystemEngine(context.settings)
 
+    haunt_engine = context.haunt_engine
+    if haunt_engine is None:
+        from ghosttrace.haunt.engine import HauntEngine
+
+        haunt_engine = HauntEngine(context.settings, ghost_engine=context.ghost_engine)
+
     subcommand = args[0].lower() if args else "overview"
     sub_args = args[1:]
 
@@ -1584,6 +1602,226 @@ def handle_system(args: list[str], context: CommandContext) -> CommandResult:
     )
 
 
+def handle_haunt(args: list[str], context: CommandContext) -> CommandResult:
+    """Haunted experience, experience modes, and interactive atmospheric ghost events."""
+    haunt_engine = context.haunt_engine
+    if haunt_engine is None:
+        from ghosttrace.haunt.engine import HauntEngine
+
+        haunt_engine = HauntEngine(context.settings, ghost_engine=context.ghost_engine)
+
+    subcommand = args[0].lower() if args else "status"
+    sub_args = args[1:]
+
+    if subcommand in ("help", "-h", "--help"):
+        lines = [
+            "HAUNTED EXPERIENCE & ATMOSPHERIC EVENTS COMMANDS",
+            "==================================================",
+            "  haunt [status]         — Display active mode, frequency, and event budget",
+            "  haunt mode [name]      — Set experience mode (normal, ambient, haunted, focus)",
+            "  haunt events           — List supported supernatural event categories and counts",
+            "  haunt intensity [lvl]  — Adjust event frequency and cooldowns (low, medium, high)",
+            "  haunt history          — View bounded session event history log",
+            "  haunt clear            — Clear session event history log",
+            "  haunt idle [on|off]    — Toggle subtle atmospheric messages during terminal idle",
+            "  haunt preview [cat]    — Preview an atmospheric event harmlessly without saving",
+            "  haunt enable|disable   — Toggle the haunted experience subsystem",
+            "==================================================",
+            "Aliases: hunt",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "enable":
+        haunt_engine.enable()
+        return CommandResult(
+            success=True,
+            output="[bold #00ff66]Haunted experience subsystem enabled.[/]",
+        )
+
+    if subcommand == "disable":
+        haunt_engine.disable()
+        return CommandResult(
+            success=True,
+            output="[dim #ff5555]Haunted experience subsystem disabled.[/] (All events suppressed)",
+        )
+
+    if subcommand == "status":
+        st = haunt_engine.get_status()
+        state_badge = "[bold #00ff66]ENABLED[/]" if st.enabled else "[dim #ff5555]DISABLED[/]"
+        lines = [
+            "HAUNTED EXPERIENCE STATUS",
+            "==================================================",
+            f"  Subsystem State    : {state_badge}",
+            f"  Experience Mode    : [bold #00ff66]{st.mode.value.upper()}[/]",
+            f"  Event Intensity    : {st.intensity.value.upper()}",
+            f"  Active Profile     : {st.active_profile}",
+            f"  Current Mood       : {st.current_mood.upper()}",
+            (
+                f"  Session Budget     : {st.total_events_triggered} / "
+                f"{st.max_events_per_session} triggered ({st.session_events_remaining} remaining)"
+            ),
+            f"  Base Cooldown      : {st.cooldown_seconds}s",
+            (
+                f"  Idle Whispers      : {'ENABLED' if st.idle_enabled else 'DISABLED'} "
+                f"(Threshold: {st.idle_threshold_seconds}s)"
+            ),
+            f"  Reduced Motion     : {'ON' if st.reduced_motion else 'OFF'}",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "mode":
+        if not sub_args:
+            return CommandResult(
+                success=True,
+                output=(
+                    f"Current experience mode: [bold #00ff66]{haunt_engine.mode.value.upper()}[/]\n"
+                    "Available modes: normal (safe default), ambient, haunted, focus\n"
+                    "Use 'haunt mode <name>' to switch immediately."
+                ),
+            )
+        target_mode = sub_args[0].lower()
+        from ghosttrace.haunt.schemas import HauntMode
+
+        try:
+            new_mode = haunt_engine.set_mode(target_mode)
+            desc_map = {
+                HauntMode.NORMAL: "Standard terminal experience. No unsolicited events.",
+                HauntMode.AMBIENT: "Subtle atmospheric messages and occasional ghost reactions.",
+                HauntMode.HAUNTED: "Expressive supernatural events and personality reactions.",
+                HauntMode.FOCUS: "Quiet focus mode. All unsolicited events suppressed.",
+            }
+            formatted_mode = f"[bold #00ff66]{new_mode.value.upper()}[/]"
+            return CommandResult(
+                success=True,
+                output=(
+                    f"Haunted experience mode switched to {formatted_mode}.\n"
+                    f"{desc_map.get(new_mode, '')}"
+                ),
+            )
+        except ValueError:
+            return CommandResult(
+                success=False,
+                output=(
+                    f"Invalid experience mode '{target_mode}'. "
+                    "Must be one of: normal, ambient, haunted, focus."
+                ),
+            )
+
+    if subcommand == "intensity":
+        if not sub_args:
+            current_lvl = f"[bold #00ff66]{haunt_engine.intensity.value.upper()}[/]"
+            return CommandResult(
+                success=True,
+                output=(
+                    f"Current event intensity: {current_lvl}\n"
+                    "Available levels: low (1.5x cooldown), medium (1.0x), high (0.6x)\n"
+                    "Use 'haunt intensity <level>' to adjust."
+                ),
+            )
+        lvl_arg = sub_args[0].lower()
+
+        try:
+            new_intensity = haunt_engine.set_intensity(lvl_arg)
+            return CommandResult(
+                success=True,
+                output=f"Event intensity set to [bold #00ff66]{new_intensity.value.upper()}[/].",
+            )
+        except ValueError:
+            return CommandResult(
+                success=False,
+                output=f"Invalid intensity '{lvl_arg}'. Must be one of: low, medium, high.",
+            )
+
+    if subcommand == "events":
+        from ghosttrace.haunt.schemas import EventCategory
+
+        table = Table(
+            title="SUPERTERRESTRIAL EVENT CATEGORIES",
+            border_style="#005522",
+            show_header=True,
+            header_style="bold #00ff66",
+        )
+        table.add_column("Category", style="bold #33ff33", width=20)
+        table.add_column("Eligible Modes", style="#88cc88", width=22)
+        table.add_column("Registered Events", style="#ddffdd", width=18)
+
+        for cat in EventCategory:
+            evs = haunt_engine.catalog.filter_by_category(cat)
+            modes_str = ", ".join(m.value.upper() for m in (evs[0].eligible_modes if evs else []))
+            table.add_row(cat.value, modes_str, f"{len(evs)} event(s)")
+
+        return CommandResult(success=True, output=table)
+
+    if subcommand == "history":
+        history_entries = haunt_engine.get_history()
+        if not history_entries:
+            return CommandResult(
+                success=True,
+                output="No atmospheric events triggered in this session yet.",
+            )
+        table = haunt_engine.render_history_table()
+        return CommandResult(success=True, output=table)
+
+    if subcommand == "clear":
+        haunt_engine.clear_history()
+        return CommandResult(
+            success=True,
+            output="Session haunted event history cleared.",
+        )
+
+    if subcommand == "idle":
+        if not sub_args:
+            st = "ENABLED" if haunt_engine.scheduler.idle_enabled else "DISABLED"
+            return CommandResult(
+                success=True,
+                output=f"Idle whisper events: {st}. Use 'haunt idle on' or 'haunt idle off'.",
+            )
+        setting = sub_args[0].lower()
+        if setting in ("on", "true", "enable", "1"):
+            haunt_engine.set_idle_events(True)
+            return CommandResult(
+                success=True,
+                output="Idle whisper events [bold #00ff66]ENABLED[/].",
+            )
+        if setting in ("off", "false", "disable", "0"):
+            haunt_engine.set_idle_events(False)
+            return CommandResult(
+                success=True,
+                output="Idle whisper events [dim #ff5555]DISABLED[/].",
+            )
+        return CommandResult(
+            success=False,
+            output=f"Invalid idle setting '{setting}'. Use 'haunt idle on' or 'haunt idle off'.",
+        )
+
+    if subcommand == "preview":
+        from ghosttrace.haunt.atmosphere import format_haunt_banner
+
+        cat_arg = sub_args[0] if sub_args else None
+        res = haunt_engine.preview_event(category=cat_arg)
+        if not res.fired or res.rendered_text is None:
+            return CommandResult(
+                success=False,
+                output=f"Preview generation failed: {res.reason}",
+            )
+        prof_id = (
+            context.ghost_engine.active_profile.id.value if context.ghost_engine else "default"
+        )
+        banner = format_haunt_banner(
+            title="PREVIEW RESONANCE",
+            text=res.rendered_text,
+            glyph=True,
+            profile_id=prof_id,
+        )
+        return CommandResult(success=True, output=banner)
+
+    return CommandResult(
+        success=False,
+        output=f"Unknown haunt subcommand: '{subcommand}'. Type 'haunt help' for usage.",
+    )
+
+
 def create_default_registry() -> CommandRegistry:
     """Create and populate a CommandRegistry with all standard GhostTrace commands."""
     registry = CommandRegistry()
@@ -1704,6 +1942,15 @@ def create_default_registry() -> CommandRegistry:
             usage="system [overview|status|cpu|memory|disk|processes|uptime|health|diagnostics]",
             aliases=["sys"],
             handler=handle_system,
+        )
+    )
+    registry.register(
+        Command(
+            name="haunt",
+            description="Haunted experience, experience modes, and interactive ghost events.",
+            usage="haunt [help|status|mode|events|intensity|history|clear|idle|preview]",
+            aliases=["hunt"],
+            handler=handle_haunt,
         )
     )
     registry.register(

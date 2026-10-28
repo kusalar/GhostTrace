@@ -35,6 +35,7 @@ def test_health_checks_disabled_subsystems() -> None:
         guard_enabled=False,
         memory_enabled=False,
         project_enabled=False,
+        haunt_enabled=False,
     )
     registry = HealthRegistry(settings)
     report = registry.check_all()
@@ -45,6 +46,7 @@ def test_health_checks_disabled_subsystems() -> None:
     assert report.subsystems["command_guardian"].status == HealthStatus.DISABLED
     assert report.subsystems["memory_db"].status == HealthStatus.DISABLED
     assert report.subsystems["project_context"].status == HealthStatus.DISABLED
+    assert report.subsystems["haunted_experience"].status == HealthStatus.DISABLED
 
 
 def test_health_checks_error_propagation() -> None:

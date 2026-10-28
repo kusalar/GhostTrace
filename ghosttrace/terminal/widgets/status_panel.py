@@ -47,6 +47,9 @@ class StatusPanel(Widget):
         self._system_enabled = getattr(settings, "system_enabled", True)
         self._system_cpu_percent: float | None = None
         self._system_ram_percent: float | None = None
+        self._haunt_enabled = getattr(settings, "haunt_enabled", True)
+        self._haunt_mode = getattr(settings, "haunt_mode", "normal")
+        self._haunt_intensity = getattr(settings, "haunt_intensity", "medium")
 
     def compose(self) -> ComposeResult:
         yield Static("SYSTEM TELEMETRY", id="status-title")
@@ -133,6 +136,22 @@ class StatusPanel(Widget):
         except Exception:
             pass
 
+    def update_haunt_status(
+        self,
+        is_active: bool = True,
+        mode: str = "normal",
+        intensity: str = "medium",
+    ) -> None:
+        """Update haunted experience subsystem telemetry."""
+        self._haunt_enabled = is_active
+        self._haunt_mode = mode
+        self._haunt_intensity = intensity
+        try:
+            body = self.query_one("#status-body", Static)
+            body.update(self._build_content())
+        except Exception:
+            pass
+
     def _build_content(self) -> str:
         ai_color = "#33ff33" if self._ai_status_text in ("READY", "LOADED") else "#ffaa00"
         if self._ai_status_text in ("OFFLINE", "MISSING", "RUNTIME MISSING"):
@@ -176,6 +195,12 @@ class StatusPanel(Widget):
         else:
             sys_text = "ACTIVE"
 
+        haunt_color = "#33ff33" if self._haunt_enabled else "#888888"
+        if not self._haunt_enabled:
+            haunt_text = "DISABLED"
+        else:
+            haunt_text = f"ACTIVE ({self._haunt_mode.upper()})"
+
         return (
             f"[bold #33ff33]GhostTrace[/] [dim]v{self.settings.app_version}[/]\n\n"
             f"[dim #558855]Environment:[/] [bold]{self.settings.env}[/]\n"
@@ -192,4 +217,5 @@ class StatusPanel(Widget):
             f" • Memory    : [bold {mem_color}]{mem_text}[/]\n"
             f" • Project   : [bold {proj_color}]{proj_text}[/]\n"
             f" • System    : [bold {sys_color}]{sys_text}[/]\n"
+            f" • Haunt     : [bold {haunt_color}]{haunt_text}[/]\n"
         )

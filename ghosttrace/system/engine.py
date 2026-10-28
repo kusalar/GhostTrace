@@ -82,6 +82,7 @@ class SystemEngine:
         dev_engine: object | None = None,
         guardian_engine: object | None = None,
         memory_engine: object | None = None,
+        haunt_engine: object | None = None,
     ) -> SystemHealthReport:
         """Perform non-destructive internal subsystem health checks."""
         return self.health_registry.check_all(
@@ -90,6 +91,7 @@ class SystemEngine:
             dev_engine=dev_engine,
             guardian_engine=guardian_engine,
             memory_engine=memory_engine,
+            haunt_engine=haunt_engine,
         )
 
     def generate_diagnostics(

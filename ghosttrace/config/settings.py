@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Application Metadata
     app_name: str = "GhostTrace"
-    app_version: str = "0.8.0"
+    app_version: str = "0.9.0"
     app_description: str = "Offline-first AI-powered haunted terminal companion."
 
     # Environment & Execution Mode
@@ -265,6 +265,40 @@ class Settings(BaseSettings):
     system_diagnostics_export: bool = Field(
         default=False,
         description="Enable diagnostic report export functionality.",
+    )
+
+    # Haunted Experience & Atmospheric Events (Step 09)
+    haunt_enabled: bool = Field(
+        default=True,
+        description="Enable or disable the haunted experience and atmospheric events.",
+    )
+    haunt_mode: str = Field(
+        default="normal",
+        description="Haunted experience mode: normal, ambient, haunted, focus.",
+    )
+    haunt_intensity: str = Field(
+        default="medium",
+        description="Atmospheric event intensity/frequency: low, medium, high.",
+    )
+    haunt_max_events_per_session: int = Field(
+        default=30,
+        description="Maximum number of atmospheric events per terminal session.",
+    )
+    haunt_cooldown_seconds: float = Field(
+        default=60.0,
+        description="Minimum cooldown in seconds between unsolicited events.",
+    )
+    haunt_idle_events: bool = Field(
+        default=False,
+        description="Enable subtle atmospheric events when the terminal is idle.",
+    )
+    haunt_idle_seconds: float = Field(
+        default=120.0,
+        description="Inactivity threshold in seconds before an idle whisper may trigger.",
+    )
+    haunt_reduced_motion: bool = Field(
+        default=False,
+        description="Respect reduced-motion preference (suppress animations/text effects).",
     )
 
     model_config = SettingsConfigDict(
@@ -534,6 +568,54 @@ class Settings(BaseSettings):
     def validate_system_cache_seconds(cls, value: float) -> float:
         if not (0.0 <= value <= 60.0):
             msg = f"Invalid system_cache_seconds {value}. Must be between 0.0 and 60.0."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("haunt_mode", mode="before")
+    @classmethod
+    def normalize_and_validate_haunt_mode(cls, value: object) -> str:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            allowed = ("normal", "ambient", "haunted", "focus")
+            if normalized in allowed:
+                return normalized
+            msg = f"Invalid haunt_mode '{value}'. Must be one of: {', '.join(allowed)}"
+            raise ValueError(msg)
+        return str(value)
+
+    @field_validator("haunt_intensity", mode="before")
+    @classmethod
+    def normalize_and_validate_haunt_intensity(cls, value: object) -> str:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            allowed = ("low", "medium", "high")
+            if normalized in allowed:
+                return normalized
+            msg = f"Invalid haunt_intensity '{value}'. Must be one of: {', '.join(allowed)}"
+            raise ValueError(msg)
+        return str(value)
+
+    @field_validator("haunt_max_events_per_session")
+    @classmethod
+    def validate_haunt_max_events_per_session(cls, value: int) -> int:
+        if not (1 <= value <= 500):
+            msg = f"Invalid haunt_max_events_per_session {value}. Must be between 1 and 500."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("haunt_cooldown_seconds")
+    @classmethod
+    def validate_haunt_cooldown_seconds(cls, value: float) -> float:
+        if not (5.0 <= value <= 3600.0):
+            msg = f"Invalid haunt_cooldown_seconds {value}. Must be between 5.0 and 3600.0."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("haunt_idle_seconds")
+    @classmethod
+    def validate_haunt_idle_seconds(cls, value: float) -> float:
+        if not (10.0 <= value <= 3600.0):
+            msg = f"Invalid haunt_idle_seconds {value}. Must be between 10.0 and 3600.0."
             raise ValueError(msg)
         return value
 

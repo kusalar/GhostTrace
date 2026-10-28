@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from ghosttrace.developer.engine import DeveloperEngine
     from ghosttrace.ghost.engine import GhostEngine
     from ghosttrace.guardian.engine import GuardianEngine
+    from ghosttrace.haunt.engine import HauntEngine
     from ghosttrace.memory.engine import MemoryEngine
     from ghosttrace.system.engine import SystemEngine
 
@@ -36,6 +37,7 @@ class CommandContext:
     guardian_engine: GuardianEngine | None = None
     memory_engine: MemoryEngine | None = None
     system_engine: SystemEngine | None = None
+    haunt_engine: HauntEngine | None = None
 
 
 @dataclass

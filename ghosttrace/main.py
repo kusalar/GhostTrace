@@ -370,6 +370,81 @@ def system_diagnostics_cmd(
     console.print(f"Overall Health: {status_val}")
 
 
+haunt_app = typer.Typer(
+    name="haunt",
+    help="Haunted experience and atmospheric events.",
+    no_args_is_help=False,
+)
+app.add_typer(haunt_app, name="haunt")
+
+
+@haunt_app.callback(invoke_without_command=True)
+def haunt_default(ctx: typer.Context) -> None:
+    """Show haunted experience status summary."""
+    if ctx.invoked_subcommand is None:
+        from rich.console import Console
+
+        from ghosttrace.haunt.engine import HauntEngine
+
+        engine = HauntEngine()
+        st = engine.get_status()
+        console = Console()
+        console.print(
+            f"[bold #00ff66]Haunted Experience:[/] "
+            f"{'ACTIVE' if st.enabled else 'DISABLED'} | "
+            f"Mode: {st.mode.value.upper()} | "
+            f"Intensity: {st.intensity.value.upper()} | "
+            f"Budget: {st.total_events_triggered}/{st.max_events_per_session}"
+        )
+
+
+@haunt_app.command(name="status")
+def haunt_status_cmd() -> None:
+    """Display comprehensive haunted experience status and configuration."""
+    from rich.console import Console
+
+    from ghosttrace.haunt.engine import HauntEngine
+
+    engine = HauntEngine()
+    st = engine.get_status()
+    console = Console()
+    console.print("HAUNTED EXPERIENCE STATUS")
+    console.print("==================================================")
+    console.print(f"  Subsystem State    : {'ACTIVE' if st.enabled else 'DISABLED'}")
+    console.print(f"  Experience Mode    : {st.mode.value.upper()}")
+    console.print(f"  Event Intensity    : {st.intensity.value.upper()}")
+    console.print(f"  Active Profile     : {st.active_profile}")
+    console.print(f"  Current Mood       : {st.current_mood.upper()}")
+    console.print(f"  Session Budget     : {st.total_events_triggered}/{st.max_events_per_session}")
+    console.print(f"  Base Cooldown      : {st.cooldown_seconds}s")
+    console.print(f"  Idle Whispers      : {'ENABLED' if st.idle_enabled else 'DISABLED'}")
+    console.print(f"  Reduced Motion     : {'ON' if st.reduced_motion else 'OFF'}")
+
+
+@haunt_app.command(name="preview")
+def haunt_preview_cmd(
+    category: str | None = typer.Argument(None, help="Event category to preview"),
+) -> None:
+    """Preview an atmospheric event manifestation harmlessly."""
+    from rich.console import Console
+
+    from ghosttrace.haunt.atmosphere import format_haunt_banner
+    from ghosttrace.haunt.engine import HauntEngine
+
+    engine = HauntEngine()
+    res = engine.preview_event(category=category)
+    console = Console()
+    if res.fired and res.rendered_text:
+        banner = format_haunt_banner(
+            title="PREVIEW RESONANCE",
+            text=res.rendered_text,
+            glyph=True,
+        )
+        console.print(banner)
+    else:
+        console.print(f"[dim #ff5555]Preview failed: {res.reason}[/]")
+
+
 def main(args: list[str] | None = None) -> int:
     """Standard CLI entry point returning exit code."""
     try:

@@ -1,7 +1,7 @@
 # GhostTrace Architecture Specification
 
-> **Status:** Step 08 / 10 — System Awareness & Diagnostics  
-> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, Developer Intelligence & Safe Code Analysis, Command Guardian & Execution Safety, Persistent Memory & Project Context, and System Awareness & Diagnostics are implemented. Modules marked as *Planned* describe planned future architecture and are not yet implemented.
+> **Status:** Step 09 / 10 — Haunted Experience & Interactive Events  
+> **Note:** Foundation, Configuration, Logging, Textual TUI, Typer CLI, Local AI Subsystem (Qwen2.5 GGUF + llama.cpp), Ghost Personality & Behaviour Engine, Developer Intelligence & Safe Code Analysis, Command Guardian & Execution Safety, Persistent Memory & Project Context, System Awareness & Diagnostics, and Haunted Experience & Interactive Events are implemented. Step 10 describes planned packaging, hardening, and final distribution.
 
 ---
 
@@ -171,6 +171,19 @@
   - `SystemEngine`: Subsystem facade coordinating collector, health registry, diagnostics, and relevance-filtered AI system context injection (`SYSTEM_INTENT_PATTERN`).
   - `schemas`: Typed Pydantic models and Enums (`HealthStatus`, `PlatformInfo`, `CpuInfo`, `MemoryInfo`, `DiskDrive`, `DiskInfo`, `ProcessInfo`, `UptimeInfo`, `SubsystemHealth`, `SystemHealthReport`, `SystemSnapshot`, `DiagnosticReport`).
 
+### `ghosttrace.haunt` (Implemented in Step 09)
+- **Status:** Implemented (Haunted Experience & Interactive Events).
+- **Responsibility:** Atmospheric terminal manifestations, context-aware ghost reactions, supernatural-themed events, dynamic mode filtering, frequency budgeting, and strictly non-persistent in-memory event tracking. Standard library, Rich, and Textual only; strictly zero speech synthesis, audio, external telemetry, or SQLite persistence.
+- **Components:**
+  - `HauntEngine`: Central subsystem facade orchestrating event generation, live trigger evaluation, profile reaction generation, mode transitions, and status reporting.
+  - `EventCatalog`: Declarative catalog spanning 9 supernatural event categories (`GHOST_GREETING`, `IDLE_WHISPER`, `CODING_REACTION`, `ERROR_REACTION`, `GUARDIAN_REACTION`, `MOOD_SHIFT`, `SESSION_EVENT`, `DISCOVERY_EVENT`, `SPECIAL_EVENT`) with profile-coherent message templates (`forgotten-machine`, `phantom-coder`, `guardian-spirit`, `default`) and deterministic seeding.
+  - `HauntScheduler`: Event frequency manager enforcing global and per-event cooldowns, intensity multipliers (`LOW` 1.5x, `MEDIUM` 1.0x, `HIGH` 0.6x), session event quotas (`GHOSTTRACE_HAUNT_MAX_EVENTS_PER_SESSION`), recent duplicate suppression, and idle eligibility without background threads.
+  - `TriggerEvaluator`: Trigger-to-event dispatch mapping 8 application triggers (`SESSION_START`, `IDLE_TICK`, `CODING_SUCCESS`, `APP_ERROR`, `GUARDIAN_WARNING`, `MOOD_TRANSITION`, `COMMAND_DISCOVERY`, `MANUAL_PREVIEW`) to eligible event categories with strict mode filtering (`NORMAL` and `FOCUS` suppress all unsolicited events).
+  - `GhostReactionBuilder`: Contextual reactive text generator tying atmospheric manifestations directly to genuine operational milestones: coding solutions, application/runtime errors, Guardian risk warnings, and persona mood shifts.
+  - `HauntRenderer`: Visual presentation engine rendering ASCII ghost glyphs (`ascii_ghost`, `ascii_spirit`, `ascii_glyph`, `ascii_whisper`), stylized Rich panels, reduced-motion accessibility formatting, and formatted session history tables.
+  - `HauntHistoryManager`: Bounded in-memory FIFO queue (max 100 entries) tracking triggered events for session inspection with zero SQLite writes.
+  - `schemas`: Typed Pydantic models and Enums (`HauntMode`: `NORMAL`, `AMBIENT`, `HAUNTED`, `FOCUS`; `HauntIntensity`: `LOW`, `MEDIUM`, `HIGH`; `EventCategory`, `TriggerType`, `HauntEvent`, `TriggerContext`, `TriggerResult`, `HauntHistoryEntry`, `HauntStatus`).
+
 ---
 
 ## 3. Agreed 10-Step Development Roadmap
@@ -183,7 +196,7 @@
 6. **Step 06: Command Guardian & Execution Safety** *(Completed)*
 7. **Step 07: Persistent Memory & Project Context** *(Completed)*
 8. **Step 08: System Awareness & Diagnostics** *(Completed)*
-9. **Step 09: Haunted Experience & Interactive Events**
+9. **Step 09: Haunted Experience & Interactive Events** *(Completed)*
 10. **Step 10: Testing, Optimization, Packaging & Release**
 
 ---

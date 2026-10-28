@@ -46,17 +46,25 @@ class ConversationLog(VerticalScroll):
         margin-bottom: 1;
         color: #ff6666;
     }
+    .haunt-event-line {
+        margin-top: 1;
+        margin-bottom: 1;
+        padding: 0 1;
+        border-left: wide #00ff66;
+        background: #040806;
+        color: #aaffbb;
+    }
     """
 
     def compose(self) -> ComposeResult:
         # Initial Welcome Message
         welcome_text = (
             "[bold #00ff66]Something has awakened inside this terminal.[/]\n\n"
-            "[dim #779977]GhostTrace is operating in Step 03 Local AI Integration mode.\n"
+            "[dim #779977]GhostTrace is operating in Haunted Terminal mode (Step 09).\n"
             "Powered by Qwen2.5 GGUF via llama.cpp (offline & private).\n"
             "Type natural language queries to ask the local assistant, or\n"
             "type [bold #33ff33]'help'[/] for commands or "
-            "[bold #33ff33]'ai status'[/] for model diagnostics.[/]"
+            "[bold #33ff33]'haunt status'[/] for atmospheric experience controls.[/]"
         )
         yield Static(welcome_text, classes="welcome-box", id="welcome-message")
 
@@ -135,6 +143,12 @@ class ConversationLog(VerticalScroll):
             classes="response-error",
         )
         self.mount(busy_widget)
+        self.scroll_end(animate=False)
+
+    def add_haunt_event(self, rendered_text: str) -> None:
+        """Mount an atmospheric haunted event manifestation into the log."""
+        event_widget = Static(rendered_text, classes="haunt-event-line")
+        self.mount(event_widget)
         self.scroll_end(animate=False)
 
     def clear_log(self) -> None:

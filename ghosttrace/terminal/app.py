@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from typing import ClassVar
 
@@ -19,6 +20,8 @@ from ghosttrace.ghost.engine import GhostEngine
 from ghosttrace.guardian.engine import GuardianEngine
 from ghosttrace.guardian.explanations import format_execution_result
 from ghosttrace.guardian.schemas import ExecutionStatus
+from ghosttrace.haunt.engine import HauntEngine
+from ghosttrace.haunt.schemas import TriggerContext, TriggerType
 from ghosttrace.memory.engine import MemoryEngine
 from ghosttrace.system.engine import SystemEngine
 from ghosttrace.terminal.command_parser import parse_command_line
@@ -93,6 +96,7 @@ class GhostTraceApp(App[int]):
         guardian_engine: GuardianEngine | None = None,
         memory_engine: MemoryEngine | None = None,
         system_engine: SystemEngine | None = None,
+        haunt_engine: HauntEngine | None = None,
         **kwargs: object,
     ) -> None:
         super().__init__(**kwargs)
@@ -155,6 +159,13 @@ class GhostTraceApp(App[int]):
         else:
             self.system_engine = SystemEngine(self.settings)
 
+        if haunt_engine is not None:
+            self.haunt_engine = haunt_engine
+        else:
+            self.haunt_engine = HauntEngine(self.settings, ghost_engine=self.ghost_engine)
+
+        self.last_user_activity = time.time()
+
         self.ai_engine = ai_engine or AIEngine(
             self.settings,
             ghost_engine=self.ghost_engine,
@@ -172,6 +183,7 @@ class GhostTraceApp(App[int]):
             guardian_engine=self.guardian_engine,
             memory_engine=self.memory_engine,
             system_engine=self.system_engine,
+            haunt_engine=self.haunt_engine,
         )
         self.is_generating = False
         self.is_executing_command = False
@@ -195,6 +207,17 @@ class GhostTraceApp(App[int]):
         cmd_input = self.query_one("#command-input", CommandInput)
         cmd_input.focus()
         self._refresh_subsystem_status()
+
+        # Trigger session start atmospheric event if eligible
+        start_res = self.haunt_engine.process_trigger(
+            TriggerContext(trigger_type=TriggerType.SESSION_START)
+        )
+        if start_res.fired and start_res.rendered_text:
+            conv_log = self.query_one("#conversation-log", ConversationLog)
+            conv_log.add_haunt_event(start_res.rendered_text)
+
+        # Periodic lightweight idle check
+        self.set_interval(15.0, self._check_idle_whisper)
         logger.info("GhostTrace terminal UI mounted successfully.")
 
     def on_unmount(self) -> None:
@@ -269,6 +292,14 @@ class GhostTraceApp(App[int]):
                 status_panel.update_system_status(
                     is_active=self.system_engine.is_enabled,
                 )
+
+            # Update Haunted Experience telemetry
+            if self.haunt_engine is not None and isinstance(self.haunt_engine, HauntEngine):
+                status_panel.update_haunt_status(
+                    is_active=self.haunt_engine.is_enabled,
+                    mode=self.haunt_engine.mode.value,
+                    intensity=self.haunt_engine.intensity.value,
+                )
         except Exception as exc:
             logger.debug("Could not refresh subsystem status: %s", exc)
 
@@ -280,6 +311,7 @@ class GhostTraceApp(App[int]):
         if not raw_text:
             return
 
+        self.last_user_activity = time.time()
         conv_log = self.query_one("#conversation-log", ConversationLog)
         status_panel = self.query_one("#status-panel", StatusPanel)
 
@@ -294,6 +326,20 @@ class GhostTraceApp(App[int]):
                 conv_log.clear_log()
             else:
                 conv_log.add_exchange(raw_text, result)
+
+            if (
+                result.command_name
+                and result.command_name not in ("clear", "exit", "help")
+                and not result.should_clear
+            ):
+                disc_res = self.haunt_engine.process_trigger(
+                    TriggerContext(
+                        trigger_type=TriggerType.COMMAND_DISCOVERY,
+                        command_name=result.command_name,
+                    )
+                )
+                if disc_res.fired and disc_res.rendered_text:
+                    conv_log.add_haunt_event(disc_res.rendered_text)
 
             if result.command_name == "guard_run" and result.success:
                 latest_req = self.guardian_engine.approval_mgr.get_latest_pending()
@@ -417,14 +463,47 @@ class GhostTraceApp(App[int]):
                     self.memory_engine.persist_assistant_message(self.session_id, final_text)
                 except Exception as exc:
                     logger.debug("Failed to persist assistant message: %s", exc)
+
+            coding_res = self.haunt_engine.process_trigger(
+                TriggerContext(
+                    trigger_type=TriggerType.CODING_SUCCESS,
+                    dev_intent="general_programming",
+                )
+            )
+            if coding_res.fired and coding_res.rendered_text:
+                self.call_from_thread(conv_log.add_haunt_event, coding_res.rendered_text)
         except Exception as exc:
             logger.exception("AI query generation failed: %s", exc)
             self.call_from_thread(
                 conv_log.update_ai_response, widget_id, f"Inference error: {exc}", False
             )
+            err_res = self.haunt_engine.process_trigger(
+                TriggerContext(
+                    trigger_type=TriggerType.APP_ERROR,
+                    error_message=str(exc),
+                )
+            )
+            if err_res.fired and err_res.rendered_text:
+                self.call_from_thread(conv_log.add_haunt_event, err_res.rendered_text)
         finally:
             self.is_generating = False
             self.call_from_thread(self._refresh_subsystem_status)
+
+    def _check_idle_whisper(self) -> None:
+        """Check for genuine terminal idle whisper events."""
+        if self.is_generating or self.is_executing_command:
+            return
+
+        idle_secs = time.time() - self.last_user_activity
+        res = self.haunt_engine.process_trigger(
+            TriggerContext(
+                trigger_type=TriggerType.IDLE_TICK,
+                idle_seconds=idle_secs,
+            )
+        )
+        if res.fired and res.rendered_text:
+            conv_log = self.query_one("#conversation-log", ConversationLog)
+            conv_log.add_haunt_event(res.rendered_text)
 
     def action_clear_screen(self) -> None:
         """Action handler to clear the conversation log (Ctrl+L)."""
