@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import sys
 from typing import Annotated
 
@@ -447,6 +448,12 @@ def haunt_preview_cmd(
 
 def main(args: list[str] | None = None) -> int:
     """Standard CLI entry point returning exit code."""
+    if hasattr(sys.stdout, "reconfigure"):
+        with contextlib.suppress(Exception):
+            sys.stdout.reconfigure(errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        with contextlib.suppress(Exception):
+            sys.stderr.reconfigure(errors="replace")
     try:
         app(args=args, standalone_mode=False)
         return 0

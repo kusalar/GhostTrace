@@ -152,7 +152,8 @@ During long multi-turn sessions where accumulated dialogue exceeds the 2048-toke
 ## 8. Packaged Executable Acceptance [VERIFIED]
 
 - **Executable:** `dist/release/GhostTrace/GhostTrace.exe`
-- **SHA256:** `1A66731B686A36544291FCAA2F2CF692709BD76AC766FCF3C546E2DE232B97E0`
+- **Initial Acceptance Build SHA256:** `1A66731B686A36544291FCAA2F2CF692709BD76AC766FCF3C546E2DE232B97E0` (commit `8cc7837`)
+- **Final Hardened Release SHA256:** `1A424D020EBE4AC446D46D80E87F9153AD5A0D4C9E5CC5C1D16A207A7C95E935` (includes Windows console encoding fix, recorded in `SHA256SUMS.txt`)
 - **Subsystem Status Check:**
   `GhostTrace.exe status` accurately discovered the model file and transitioned:
   `| 03 | Local AI Integration (llama.cpp) | READY |` [VERIFIED]

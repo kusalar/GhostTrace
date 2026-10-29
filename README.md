@@ -62,7 +62,7 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 | **Persistent Memory & Projects** | **Completed** | SQLite persistence (WAL mode), FTS5 full-text search, user-controlled memory CRUD, read-only project indexing |
 | **System Awareness & Diagnostics** | **Completed** | Win32 & stdlib resource telemetry, health inspection across 12 subsystems, diagnostic reporting |
 | **Haunted Experience** | **Completed** | Step 09: Atmospheric manifestations, ghost reactions, 4 experience modes (normal, ambient, haunted, focus), 9 event categories |
-| **Testing Suite** | **Completed** | Deterministic unit, async TUI, and integration tests (458 tests, 100% passing, 89.08% coverage) |
+| **Testing Suite** | **Completed** | Deterministic unit, async TUI, and integration tests (459 tests passed, 460 including real-model end-to-end smoke test, 88.92% branch coverage) |
 | **Packaging & Hardening** | **Completed** | Step 10: Standalone Windows executable (`GhostTrace.exe`), PyInstaller distribution bundle, hardened release artifacts |
 
 ---

@@ -51,7 +51,7 @@ def format_haunt_banner(
 ) -> str:
     """Format an interactive haunted event banner with optional ASCII glyph."""
     lines: list[str] = []
-    lines.append(f"[bold #00ff66]⚡ [HAUNTED RESONANCE] :: {title.upper()}[/]")
+    lines.append(f"[bold #00ff66]* [HAUNTED RESONANCE] :: {title.upper()}[/]")
     if glyph:
         art = get_ascii_ghost(profile_id)
         for line in art.splitlines():
@@ -64,6 +64,6 @@ def format_mood_shift_banner(from_mood: str, to_mood: str, text: str) -> str:
     """Format a subtle mood transition manifestation."""
     return (
         f"[dim #00cc55]• [GHOST RESONANCE SHIFT][/] [bold #33ff33]{from_mood.upper()}[/] "
-        f"[dim]→[/] [bold #00ff66]{to_mood.upper()}[/]\n"
+        f"[dim]->[/] [bold #00ff66]{to_mood.upper()}[/]\n"
         f"[italic #88dd99]{text}[/]"
     )
