@@ -519,7 +519,7 @@ Every command execution requires explicit approval:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ GHOSTTRACE v1.0.0 │ GHOST: OBSERVER (DORMANT) │ AI: READY               │
+│ GHOSTTRACE v1.0.0 │ GHOST: FORGOTTEN MACHINE (DORMANT) │ AI: READY     │
 ├──────────────────────────────────────────────┬─────────────────────────┤
 │ ConversationLog                              │ StatusPanel             │
 │                                              │                         │
