@@ -120,3 +120,32 @@ def test_ai_engine_load_unload_and_stop() -> None:
     with patch.object(engine.inference_engine, "stop") as mock_stop:
         engine.stop_generation()
         mock_stop.assert_called_once()
+
+
+def test_ai_inference_context_overflow_pruning(tmp_path: Path) -> None:
+    """Verify inference engine prunes oldest messages and retries when context is exceeded."""
+    dummy_model = tmp_path / "test.gguf"
+    dummy_model.write_bytes(b"GGUF")
+    engine = AIEngine(Settings(model_path=dummy_model))
+
+    mock_llama = MagicMock()
+    # First call raises ValueError for context overflow; second call succeeds with reduced messages
+    success_resp = {
+        "choices": [{"message": {"content": "Pruned recovery answer."}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": 1500, "completion_tokens": 10, "total_tokens": 1510},
+    }
+    mock_llama.create_chat_completion.side_effect = [
+        ValueError("Requested tokens (2072) exceed context window of 2048"),
+        success_resp,
+    ]
+
+    with patch.object(engine.model_manager, "load_model", return_value=mock_llama):
+        # Seed conversation with multiple turns so messages can be pruned
+        engine.conversation.add_user_message("Old question 1")
+        engine.conversation.add_assistant_message("Old answer 1")
+        engine.conversation.add_user_message("Old question 2")
+        engine.conversation.add_assistant_message("Old answer 2")
+
+        result = engine.ask("Latest question")
+        assert result.text == "Pruned recovery answer."
+        assert mock_llama.create_chat_completion.call_count == 2

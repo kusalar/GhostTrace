@@ -85,12 +85,32 @@ class InferenceEngine:
                 total_tokens=total_tokens,
                 duration_seconds=duration,
             )
+        except ValueError as exc:
+            if "exceed context window" in str(exc) and len(messages) > 2:
+                logger.warning(
+                    "Context window exceeded (%s). Pruning oldest exchange and retrying...",
+                    exc,
+                )
+                drop_count = 2 if len(messages) >= 3 else 1
+                reduced_messages = [messages[0], *messages[1 + drop_count :]]
+                self._is_generating = False
+                self._busy_lock.release()
+                return self.generate(
+                    model,
+                    reduced_messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                )
+            logger.exception("Inference failed: %s", exc)
+            raise InferenceError(f"Model generation failed: {exc}") from exc
         except Exception as exc:
             logger.exception("Inference failed: %s", exc)
             raise InferenceError(f"Model generation failed: {exc}") from exc
         finally:
-            self._is_generating = False
-            self._busy_lock.release()
+            if self._is_generating:
+                self._is_generating = False
+                self._busy_lock.release()
 
     def generate_stream(
         self,
@@ -129,9 +149,30 @@ class InferenceEngine:
                     content = delta.get("content", "")
                     if content:
                         yield content
+        except ValueError as exc:
+            if "exceed context window" in str(exc) and len(messages) > 2:
+                logger.warning(
+                    "Context window exceeded (%s). Pruning oldest exchange and retrying stream...",
+                    exc,
+                )
+                drop_count = 2 if len(messages) >= 3 else 1
+                reduced_messages = [messages[0], *messages[1 + drop_count :]]
+                self._is_generating = False
+                self._busy_lock.release()
+                yield from self.generate_stream(
+                    model,
+                    reduced_messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                )
+                return
+            logger.exception("Streaming inference failed: %s", exc)
+            raise InferenceError(f"Streaming generation failed: {exc}") from exc
         except Exception as exc:
             logger.exception("Streaming inference failed: %s", exc)
             raise InferenceError(f"Streaming generation failed: {exc}") from exc
         finally:
-            self._is_generating = False
-            self._busy_lock.release()
+            if self._is_generating:
+                self._is_generating = False
+                self._busy_lock.release()
