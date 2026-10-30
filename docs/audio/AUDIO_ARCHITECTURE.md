@@ -1,8 +1,8 @@
 # GhostTrace Audio Subsystem Architecture
 
 > **Release:** GhostTrace v1.1.0  
-> **Milestone:** Step 01 / 10 — Audio Subsystem Foundation & Architecture  
-> **Status:** Architecture & Foundation Complete (Playback NOT Implemented in Step 01)
+> **Milestone:** Step 02 / 10 — Original Horror Sound Asset Library  
+> **Status:** Sound Asset Library Complete (Playback NOT Implemented in Step 02)
 
 ---
 
@@ -77,24 +77,26 @@ Volume values are strictly validated at instantiation; values outside `[0.0, 1.0
 
 ---
 
-## 4. Asset Organization & Licensing Guidelines
+## 4. Asset Organization & Original Procedural Library
 
-Audio assets reside under `assets/audio/` with categorized subdirectories:
-- `assets/audio/sfx/`: System startup, shutdown, and notification chimes.
-- `assets/audio/ambient/`: Continuous, low-frequency horror drones and wind loops.
-- `assets/audio/glitch/`: Sharp bit-crushed bursts and static interference.
-- `assets/audio/whisper/`: Nonverbal spectral sibilance, cold breaths, and faint murmurs.
-- `assets/audio/haunt/`: Reactions to Guardian intercepts, execution approvals, coding milestones, and mood transitions.
+All 20 canonical sound effects reside under `assets/audio/` with complete technical metadata registered in [`assets/audio/ASSET_MANIFEST.json`](file:///d:/GhostTrace/assets/audio/ASSET_MANIFEST.json):
+- `assets/audio/sfx/`: System startup, shutdown, and notification chimes (2.50s startup, 2.20s shutdown, alert & ping).
+- `assets/audio/ambient/`: Continuous, low-frequency horror drones and wind loops (6.0s dark hum, 6.0s cold wind, 5.0s distant thunder).
+- `assets/audio/glitch/`: Sharp bit-crushed bursts and static interference (0.35s - 0.60s).
+- `assets/audio/whisper/`: Nonverbal spectral sibilance, cold breaths, and faint murmurs (1.40s - 2.00s).
+- `assets/audio/haunt/`: Reactions to Guardian intercepts, execution approvals, coding milestones, and mood transitions (0.45s - 2.20s).
 
-### Licensing & Copyright Policy
-- **No Copyrighted Material:** Commercial movie, television, anime, or commercial video game sound effects are strictly prohibited.
-- **Permitted Formats:** 16-bit PCM WAV (44.1 kHz / 48 kHz stereo or mono) and OGG Vorbis (for looping ambient drones).
-- **Accepted Licenses:** Creative Commons Zero (CC0), Public Domain, or licensed audio with explicit attribution recorded in `ASSET_MANIFEST.md`.
+### Technical Specifications & Licensing
+- **Format:** 16-bit linear PCM WAV, 44.1 kHz sample rate.
+- **Mastering:** Normalized to -2.85 dBFS peak, leaving safe dynamic headroom without digital clipping.
+- **Provenance:** 100% original procedural synthesis generated via Python standard library DSP (`tools/generate_audio_assets.py`, seed=42). Zero copyrighted samples.
+- **License:** Project-owned original assets released under the **MIT License**.
 
 ---
 
 ## 5. Playback Implementation Status
 
 > [!IMPORTANT]
-> **Audio playback is NOT implemented in Step 01.**  
-> In this milestone, all sound operations route through `NullAudioBackend`. No audio drivers, WASAPI endpoints, or external audio libraries are loaded or initialized. All v1.0.0 functionality, CLI commands, and TUI layouts remain 100% preserved.
+> **Audio playback is NOT implemented in Step 02.**  
+> While the sound asset library is fully generated and verified on disk, all runtime sound operations continue to route strictly through `NullAudioBackend`. No audio drivers, background playback threads, WASAPI endpoints, or external audio libraries are loaded or initialized. All v1.0.0 functionality, CLI commands, and TUI layouts remain 100% preserved.
+

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Final
 
 from ghosttrace.audio.schemas import AudioCategory, AudioEventId, SoundEffect
@@ -32,7 +33,7 @@ DEFAULT_CATALOG: Final[dict[AudioEventId, SoundEffect]] = {
         id=AudioEventId.AMBIENT_DARK_HUM,
         name="Subterranean Drone",
         category=AudioCategory.AMBIENT,
-        relative_path="ambient/dark_hum.ogg",
+        relative_path="ambient/dark_hum.wav",
         description="Subtle, low-frequency atmospheric rumble and room-tone decay.",
         loop=True,
         default_volume=0.4,
@@ -41,7 +42,7 @@ DEFAULT_CATALOG: Final[dict[AudioEventId, SoundEffect]] = {
         id=AudioEventId.AMBIENT_COLD_WIND,
         name="Chilling Draft",
         category=AudioCategory.AMBIENT,
-        relative_path="ambient/cold_wind.ogg",
+        relative_path="ambient/cold_wind.wav",
         description="Distantly howling wind whistling through deserted architecture.",
         loop=True,
         default_volume=0.3,
@@ -50,7 +51,7 @@ DEFAULT_CATALOG: Final[dict[AudioEventId, SoundEffect]] = {
         id=AudioEventId.AMBIENT_DISTANT_THUNDER,
         name="Distant Storm Rumble",
         category=AudioCategory.AMBIENT,
-        relative_path="ambient/distant_thunder.ogg",
+        relative_path="ambient/distant_thunder.wav",
         description="Muffled sub-bass thunder rolling beyond the terminal walls.",
         loop=True,
         default_volume=0.3,
@@ -232,3 +233,33 @@ class AudioCatalog:
     def count(self) -> int:
         """Return total number of registered sound effects."""
         return len(self._entries)
+
+    def validate_assets_present(self, asset_dir: Path) -> dict[AudioEventId, bool]:
+        """Check whether each registered sound effect has a corresponding on-disk file.
+
+        Args:
+            asset_dir: Base directory for audio assets.
+
+        Returns:
+            Dictionary mapping AudioEventId to boolean presence flag.
+        """
+        results: dict[AudioEventId, bool] = {}
+        for event_id, sound in self._entries.items():
+            expected_file = (asset_dir / sound.relative_path).resolve()
+            results[event_id] = expected_file.is_file()
+        return results
+
+    def get_available_events(self, asset_dir: Path) -> list[AudioEventId]:
+        """Return list of registered event IDs that have existing on-disk sound files.
+
+        Args:
+            asset_dir: Base directory for audio assets.
+
+        Returns:
+            List of present AudioEventId values.
+        """
+        return [
+            event_id
+            for event_id, is_present in self.validate_assets_present(asset_dir).items()
+            if is_present
+        ]
