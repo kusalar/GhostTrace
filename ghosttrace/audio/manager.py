@@ -6,6 +6,7 @@ import contextlib
 import logging
 import threading
 from pathlib import Path
+from typing import Any
 
 from ghosttrace.audio.backend import AudioBackend, MiniAudioBackend, NullAudioBackend
 from ghosttrace.audio.catalog import AudioCatalog
@@ -52,8 +53,10 @@ class AudioManager:
         self.settings.audio_scheduled_whispers_enabled = resolved.get(
             "scheduled_whispers_enabled", False
         )
+        self.settings.audio_dynamic_horror_enabled = resolved.get("dynamic_horror_enabled", False)
 
         self._volume: float = self.settings.audio_volume
+        self._director: Any | None = None
         self._ambient_volume: float = self.settings.audio_ambient_volume
         self._is_muted: bool = self.settings.audio_muted
 
@@ -216,6 +219,7 @@ class AudioManager:
             muted=self._is_muted,
             haunted_keystrokes_enabled=self.settings.audio_haunted_keystrokes_enabled,
             scheduled_whispers_enabled=self.settings.audio_scheduled_whispers_enabled,
+            dynamic_horror_enabled=self.settings.audio_dynamic_horror_enabled,
         )
         save_audio_preferences(prefs, get_audio_preferences_path(self.settings))
 
@@ -241,6 +245,20 @@ class AudioManager:
                 active_voices_count=int(backend_state.get("active_voices", 0)),
                 haunted_keystrokes_enabled=self.settings.audio_haunted_keystrokes_enabled,
                 scheduled_whispers_enabled=self.settings.audio_scheduled_whispers_enabled,
+                dynamic_horror_enabled=self.settings.audio_dynamic_horror_enabled,
+                horror_intensity=(
+                    self._director.compute_intensity().value
+                    if self._director is not None
+                    else "dormant"
+                ),
+                atmospheric_events_in_window=(
+                    self._director.get_telemetry().get("atmospheric_events_in_window", 0)
+                    if self._director is not None
+                    else 0
+                ),
+                last_suppression_reason=(
+                    self._director.last_suppression_reason if self._director is not None else None
+                ),
             )
 
     def resolve_asset_path(self, event_id: AudioEventId | str) -> Path | None:
@@ -365,6 +383,18 @@ class AudioManager:
                 self._persist_current_preferences()
 
     @property
+    def is_muted(self) -> bool:
+        """Return whether audio playback is currently muted."""
+        with self._lock:
+            return self._is_muted
+
+    @property
+    def master_volume(self) -> float:
+        """Return current master output volume level."""
+        with self._lock:
+            return self._volume
+
+    @property
     def haunted_keystrokes_enabled(self) -> bool:
         """Return whether haunted keystrokes are enabled."""
         with self._lock:
@@ -389,6 +419,32 @@ class AudioManager:
             self.settings.audio_scheduled_whispers_enabled = bool(enabled)
             if persist:
                 self._persist_current_preferences()
+
+    @property
+    def dynamic_horror_enabled(self) -> bool:
+        """Return whether dynamic horror orchestration is enabled."""
+        with self._lock:
+            return self.settings.audio_dynamic_horror_enabled
+
+    def set_dynamic_horror(self, enabled: bool, persist: bool = True) -> None:
+        """Configure dynamic horror orchestration and optionally persist preferences."""
+        with self._lock:
+            self.settings.audio_dynamic_horror_enabled = bool(enabled)
+            if self._director is not None:
+                self._director.set_enabled(bool(enabled))
+            if persist:
+                self._persist_current_preferences()
+
+    @property
+    def director(self) -> Any | None:
+        """Return attached HorrorAudioDirector instance."""
+        with self._lock:
+            return self._director
+
+    def set_director(self, director: Any) -> None:
+        """Attach a HorrorAudioDirector instance."""
+        with self._lock:
+            self._director = director
 
     def play_test_sound(self) -> bool:
         """Play a safe, short sound effect to verify output."""

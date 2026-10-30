@@ -45,6 +45,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TUI controls in `AudioSettingsModal`: interactive toggle button and single-key shortcut (`w`).
   - CLI commands: `ghosttrace audio whispers <on|off>` and status telemetry integration.
   - Safe lifecycle management with clean cancellation upon unmount and shutdown.
+- **Dynamic Horror Event Orchestration & Adaptive Audio Director (Step 09):**
+  - Centralized HorrorAudioDirector component coordinating haunted typing, scheduled whispers, glitches, application events, and ambient horror loops.
+  - Hierarchical priority tiering: CRITICAL (Guardian events and errors), IMPORTANT (lifecycle, notifications, coding success), ATMOSPHERIC (whispers, typing effects, glitches), and AMBIENT (background streams).
+  - Guardian security decisions, approvals, and interceptions retain unconditional priority and are never throttled or deferred by atmospheric limits.
+  - Deterministic adaptive horror intensity states: dormant, subtle, unsettling, and haunted, calculated from experience mode, aggregate typing rates, and developer task successes without LLM inference or background system surveillance.
+  - Cross-system collision prevention ensuring typing effects and scheduled whispers never trigger simultaneously within collision windows.
+  - Glitch burst suppression enforcing dedicated cooldowns against repeated audio clutter.
+  - Strict context evaluation suppressing atmospheric cues during AI generation, active command execution, or pending Command Guardian approval dialogs.
+  - Dedicated configuration setting audio_dynamic_horror_enabled / dynamic_horror_enabled, disabled by default (OFF), persisted in audio_preferences.json.
+  - TUI controls in AudioSettingsModal: interactive toggle button and keyboard shortcut (h).
+  - CLI command: ghosttrace audio horror <on|off> and status telemetry integration.
+  - Comprehensive privacy guarantees: zero raw keyboard capture, zero command text inspection, zero microphone access, zero clipboard inspection, and zero OS surveillance.
 
 ---
 

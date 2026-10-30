@@ -331,6 +331,10 @@ class Settings(BaseSettings):
         default=False,
         description="Enable or disable rare, atmospheric whisper sound effects.",
     )
+    audio_dynamic_horror_enabled: bool = Field(
+        default=False,
+        description="Enable or disable centralized dynamic horror event orchestration.",
+    )
     audio_asset_dir: Path | None = Field(
         default=None,
         description="Directory for local horror sound effect assets. Defaults to assets/audio.",
@@ -679,6 +683,11 @@ class Settings(BaseSettings):
     def scheduled_whispers_enabled(self) -> bool:
         """Alias for audio_scheduled_whispers_enabled."""
         return self.audio_scheduled_whispers_enabled
+
+    @property
+    def dynamic_horror_enabled(self) -> bool:
+        """Alias for audio_dynamic_horror_enabled."""
+        return self.audio_dynamic_horror_enabled
 
     def model_post_init(self, __context: object) -> None:
         """Resolve computed directories and debug-level adjustments."""

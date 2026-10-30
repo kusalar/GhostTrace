@@ -17,6 +17,7 @@ from textual.widgets import Footer, Input, Static
 
 from ghosttrace.ai.engine import AIEngine
 from ghosttrace.audio.adapter import AudioEventAdapter
+from ghosttrace.audio.horror_director import HorrorAudioDirector
 from ghosttrace.audio.manager import AudioManager
 from ghosttrace.audio.typing_effects import TypingEffectsManager
 from ghosttrace.audio.whisper_scheduler import WhisperScheduler
@@ -176,15 +177,27 @@ class GhostTraceApp(App[int]):
         else:
             self.audio_manager = AudioManager(self.settings)
 
-        self.audio_adapter = AudioEventAdapter(self.audio_manager)
+        self.audio_director = HorrorAudioDirector(
+            audio_manager=self.audio_manager,
+            settings=self.settings,
+            experience_mode=self.haunt_engine.mode.value,
+            context_check_func=self._get_director_context,
+        )
+        self.audio_manager.set_director(self.audio_director)
+        self.audio_adapter = AudioEventAdapter(
+            self.audio_manager,
+            horror_director=self.audio_director,
+        )
         self.typing_effects = TypingEffectsManager(
             audio_manager=self.audio_manager,
             audio_adapter=self.audio_adapter,
+            horror_director=self.audio_director,
         )
         self.audio_adapter._typing_effects = self.typing_effects
         self.whisper_scheduler = WhisperScheduler(
             audio_manager=self.audio_manager,
             audio_adapter=self.audio_adapter,
+            horror_director=self.audio_director,
             schedule_timer_func=lambda delay, cb: self.set_timer(delay, cb),
             cancel_timer_func=lambda t: t.stop() if hasattr(t, "stop") else None,
             context_check_func=self._is_safe_for_whisper,
@@ -259,6 +272,7 @@ class GhostTraceApp(App[int]):
     def on_unmount(self) -> None:
         """Release local AI and audio resources cleanly upon shutdown."""
         self.whisper_scheduler.shutdown()
+        self.audio_director.shutdown()
         self.audio_adapter.on_shutdown()
         self.ai_engine.unload_model()
         if self.memory_engine is not None:
@@ -360,6 +374,8 @@ class GhostTraceApp(App[int]):
         Strict Privacy Notice:
         No keystroke character, keycode, or text content is ever accepted or inspected.
         """
+        if hasattr(self, "audio_director") and self.audio_director is not None:
+            self.audio_director.record_typing_activity()
         if hasattr(self, "typing_effects") and self.typing_effects is not None:
             self.typing_effects.record_keystroke()
 
@@ -581,6 +597,19 @@ class GhostTraceApp(App[int]):
         finally:
             self.is_generating = False
             self.call_from_thread(self._refresh_subsystem_status)
+
+    def _get_director_context(self) -> dict[str, bool]:
+        """Context check providing application-state metadata to HorrorAudioDirector."""
+        has_pending = bool(
+            getattr(self, "guardian_engine", None) is not None
+            and hasattr(self.guardian_engine, "approval_mgr")
+            and self.guardian_engine.approval_mgr.has_pending()
+        )
+        return {
+            "is_generating": getattr(self, "is_generating", False),
+            "is_guardian_active": has_pending,
+            "is_executing_command": getattr(self, "is_executing_command", False),
+        }
 
     def _is_safe_for_whisper(self) -> bool:
         """Context check ensuring scheduled whispers do not interrupt active command work."""

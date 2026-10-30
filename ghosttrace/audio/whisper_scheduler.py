@@ -79,6 +79,7 @@ class WhisperScheduler:
         self,
         audio_manager: AudioManager | None = None,
         audio_adapter: AudioEventAdapter | None = None,
+        horror_director: Any | None = None,
         random_func: Callable[[], float] | None = None,
         time_func: Callable[[], float] | None = None,
         schedule_timer_func: Callable[[float, Callable[[], None]], Any] | None = None,
@@ -87,6 +88,7 @@ class WhisperScheduler:
     ) -> None:
         self.audio_manager = audio_manager
         self.audio_adapter = audio_adapter
+        self.horror_director = horror_director
         self.random_func = random_func or random.random
         self.time_func = time_func or time.monotonic
         self.schedule_timer_func = schedule_timer_func
@@ -173,6 +175,16 @@ class WhisperScheduler:
 
         current_time = now if now is not None else self.time_func()
 
+        director = self.horror_director or (
+            getattr(self.audio_adapter, "horror_director", None) if self.audio_adapter else None
+        )
+        if (
+            director is not None
+            and director.is_enabled
+            and not director.can_dispatch_whisper(now=current_time)
+        ):
+            return False
+
         with self._lock:
             if self._is_whisper_playing:
                 return False
@@ -228,9 +240,22 @@ class WhisperScheduler:
             self._recent_whisper_timestamps.append(current_time)
             self._is_whisper_playing = True
 
-        # Dispatch playback
+        # Dispatch playback through HorrorAudioDirector or AudioManager
         success = False
-        if self.audio_manager is not None:
+        director = self.horror_director or (
+            getattr(self.audio_adapter, "horror_director", None) if self.audio_adapter else None
+        )
+        if director is not None and director.is_enabled:
+            try:
+                success = bool(
+                    director.dispatch_event(
+                        chosen_event, volume_scale=volume_scale, now=current_time
+                    )
+                )
+            finally:
+                with self._lock:
+                    self._is_whisper_playing = False
+        elif self.audio_manager is not None:
             try:
                 success = bool(self.audio_manager.play(chosen_event, volume_scale=volume_scale))
                 logger.debug("Scheduled whisper triggered: %s (success=%s)", chosen_event, success)

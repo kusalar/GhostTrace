@@ -368,4 +368,56 @@ Step 08 introduces rare, unpredictable, atmospheric whisper-like sound effects m
 | `haunted` | $45.0\text{ s} - 120.0\text{ s}$ (45s–2 min) | $30.0\text{ s}$ | 12 / hour | 0.35 | `whisper_breath`, `whisper_spectral`, `whisper_murmur` |
 | `focus` | **Suppressed** | N/A | 0 / hour | 0.00 | **All scheduled whispers suppressed immediately** |
 
+---
+
+## 17. Centralized Dynamic Horror Event Orchestration & Adaptive Audio Director (v1.2.0 Step 09)
+
+Step 09 introduces the centralized [`ghosttrace.audio.horror_director.HorrorAudioDirector`](file:///d:/GhostTrace/ghosttrace/audio/horror_director.py) to coordinate existing atmospheric sound manifestations across GhostTrace without creating duplicate backends or background worker threads.
+
+### Hierarchical Audio Priority Classification
+
+All audio playback events are classified into explicit priority tiers to guarantee that safety and operational feedback are never blocked or drowned out:
+
+1. **CRITICAL (`AudioPriority.CRITICAL`):**
+   - Events: `guardian_intercept`, `guardian_approved`, `guardian_blocked`, `app_error`.
+   - Invariants: Never throttled, never deferred, and never blocked by atmospheric budgets or Focus mode. Guardian safety decisions always retain immediate auditory awareness.
+2. **IMPORTANT (`AudioPriority.IMPORTANT`):**
+   - Events: `startup`, `shutdown`, `notification_alert`, `notification_ping`, `coding_success`.
+   - Invariants: System lifecycle and high-value developer milestones take precedence over atmospheric background cues.
+3. **ATMOSPHERIC (`AudioPriority.ATMOSPHERIC`):**
+   - Events: `keystroke_haunt`, `whisper_breath`, `whisper_spectral`, `whisper_murmur`, `glitch_digital`, `glitch_static`, `glitch_corruption`, `mood_shift`.
+   - Invariants: Coordinated by the director subject to experience-mode policies, rate ceilings, minimum intervals, and cross-effect conflict prevention.
+4. **AMBIENT (`AudioPriority.AMBIENT`):**
+   - Events: `ambient_dark_hum`, `ambient_cold_wind`, `ambient_distant_thunder`.
+   - Invariants: Continuous background loops; automatically stopped in Focus mode or Normal mode.
+
+### Deterministic Adaptive Intensity Calibration
+
+Horror manifestations dynamically adapt based strictly on deterministic application state (active experience mode, recent typing rate, recent developer success, and rolling event counts) without any LLM inference or background system surveillance:
+
+- `dormant`: All atmospheric effects silenced (forced in Focus mode, or when quiet/idle in Normal mode).
+- `subtle`: Gentle manifestations (Normal mode under sustained activity, Ambient mode baseline).
+- `unsettling`: Moderate manifestations (Ambient mode under sustained activity, Haunted mode baseline).
+- `haunted`: Peak horror richness (Haunted mode under sustained typing activity and developer milestones).
+
+### Atmospheric Rate Limits & Conflict Prevention Budgets
+
+| Experience Mode | Max Events / Min | Min Interval | Glitch Cooldown | Whisper Cooldown | Collision Window |
+|---|---|---|---|---|---|
+| `normal` | 3 / min | $8.0\text{ s}$ | $3.0\text{ s}$ | $10.0\text{ s}$ | $2.5\text{ s}$ |
+| `ambient` | 5 / min | $5.0\text{ s}$ | $2.5\text{ s}$ | $8.0\text{ s}$ | $2.0\text{ s}$ |
+| `haunted` | 8 / min | $2.0\text{ s}$ | $1.5\text{ s}$ | $4.0\text{ s}$ | $1.5\text{ s}$ |
+| `focus` | **0 / min** | N/A | N/A | N/A | N/A |
+
+### Cross-System Conflict Prevention
+- **Typing vs Whisper Collisions:** If a scheduled whisper is active or played within the collision window, typing keystroke haunt effects are suppressed (`whisper_collision`). Conversely, if a typing manifestation occurred within the window, new whispers are deferred (`typing_collision`).
+- **Glitch Burst Suppression:** Successive digital glitch events enforce dedicated minimum cooldowns to avoid audio clutter.
+- **Context Guards:** Atmospheric events are automatically suppressed during active AI generation (`is_generating`), Command Guardian approval prompts, or active command execution.
+
+### User Controls & Privacy Guarantees
+- **CLI Commands:** `ghosttrace audio horror on` and `ghosttrace audio horror off`.
+- **TUI Modal Shortcut:** Press `h` in the Audio Settings modal (Ctrl+A) to toggle dynamic orchestration.
+- **Strict Privacy:** Zero raw keyboard capture, zero command text inspection, zero microphone access, zero clipboard inspection, zero network calls, and zero external OS surveillance.
+
+
 

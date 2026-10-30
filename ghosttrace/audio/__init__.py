@@ -12,6 +12,13 @@ from ghosttrace.audio.exceptions import (
     AudioInitializationError,
     InvalidVolumeError,
 )
+from ghosttrace.audio.horror_director import (
+    EVENT_PRIORITIES,
+    AudioPriority,
+    HorrorAudioDirector,
+    HorrorIntensity,
+    SuppressionReason,
+)
 from ghosttrace.audio.manager import AudioManager
 from ghosttrace.audio.preferences import (
     AudioPreferences,
@@ -31,6 +38,7 @@ from ghosttrace.audio.typing_effects import TYPING_MODE_PROFILES, TypingEffectsM
 from ghosttrace.audio.whisper_scheduler import WHISPER_MODE_PROFILES, WhisperScheduler
 
 __all__ = [
+    "EVENT_PRIORITIES",
     "TYPING_MODE_PROFILES",
     "WHISPER_MODE_PROFILES",
     "AssetNotFoundError",
@@ -45,12 +53,16 @@ __all__ = [
     "AudioManager",
     "AudioPlaybackRequest",
     "AudioPreferences",
+    "AudioPriority",
     "AudioStatus",
+    "HorrorAudioDirector",
+    "HorrorIntensity",
     "InvalidVolumeError",
     "MiniAudioBackend",
     "NotificationSeverity",
     "NullAudioBackend",
     "SoundEffect",
+    "SuppressionReason",
     "TypingEffectsManager",
     "WhisperScheduler",
     "apply_preferences_with_precedence",

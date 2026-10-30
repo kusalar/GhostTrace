@@ -26,6 +26,7 @@ class AudioSettingsModal(ModalScreen[None]):
         Binding("e", "toggle_enable", "Toggle Enable", show=True),
         Binding("k", "toggle_keystrokes", "Toggle Keystrokes", show=True),
         Binding("w", "toggle_whispers", "Toggle Whispers", show=True),
+        Binding("h", "toggle_horror", "Toggle Horror", show=True),
         Binding("+", "vol_up", "Vol +", show=False),
         Binding("-", "vol_down", "Vol -", show=False),
     ]
@@ -124,6 +125,13 @@ class AudioSettingsModal(ModalScreen[None]):
                     id="btn-toggle-whispers",
                     classes="control-btn",
                 )
+                yield Button(
+                    "Horror: ON"
+                    if self.audio_manager.settings.audio_dynamic_horror_enabled
+                    else "Horror: OFF",
+                    id="btn-toggle-horror",
+                    classes="control-btn",
+                )
                 yield Button("Test Sound", id="btn-test-sound", classes="control-btn")
 
             with Horizontal(classes="action-row"):
@@ -180,6 +188,11 @@ class AudioSettingsModal(ModalScreen[None]):
             if self.audio_manager.settings.audio_scheduled_whispers_enabled
             else "[dim #ff5555]OFF[/]"
         )
+        horror_badge = (
+            "[bold #00ff66]ON[/]"
+            if self.audio_manager.settings.audio_dynamic_horror_enabled
+            else "[dim #ff5555]OFF[/]"
+        )
         lines = [
             f"  Subsystem State    : {state_badge} (Mute: {mute_badge})",
             f"  Audio Backend      : [cyan]{st.backend_type.upper()}[/] ({device_badge})",
@@ -187,6 +200,10 @@ class AudioSettingsModal(ModalScreen[None]):
             f"  Ambient Volume     : {amb_bar} [bold]{int(st.ambient_volume * 100)}%[/]",
             f"  Haunted Keystrokes : {keystrokes_badge} (Typing effects)",
             f"  Scheduled Whispers : {whispers_badge} (Atmospheric cues)",
+            (
+                f"  Horror Director    : {horror_badge} "
+                f"(Intensity: [bold #ffaa00]{st.horror_intensity.upper()}[/])"
+            ),
             f"  Experience Mode    : [bold #00ff66]{exp_mode.upper()}[/] — {policy_desc}",
         ]
         return "\n".join(lines)
@@ -220,6 +237,13 @@ class AudioSettingsModal(ModalScreen[None]):
                 if self.audio_manager.settings.audio_scheduled_whispers_enabled
                 else "Whispers: OFF"
             )
+
+            horror_btn = self.query_one("#btn-toggle-horror", Button)
+            horror_btn.label = (
+                "Horror: ON"
+                if self.audio_manager.settings.audio_dynamic_horror_enabled
+                else "Horror: OFF"
+            )
         except Exception:
             pass
 
@@ -235,6 +259,8 @@ class AudioSettingsModal(ModalScreen[None]):
             self.action_toggle_keystrokes()
         elif btn_id == "btn-toggle-whispers":
             self.action_toggle_whispers()
+        elif btn_id == "btn-toggle-horror":
+            self.action_toggle_horror()
         elif btn_id == "btn-test-sound":
             self.action_test_sound()
         elif btn_id == "btn-vol-down":
@@ -304,6 +330,12 @@ class AudioSettingsModal(ModalScreen[None]):
         """Toggle scheduled whispers state immediately and persist preferences."""
         curr = self.audio_manager.settings.audio_scheduled_whispers_enabled
         self.audio_manager.set_scheduled_whispers(not curr, persist=True)
+        self._refresh_display()
+
+    def action_toggle_horror(self) -> None:
+        """Toggle dynamic horror director state immediately and persist preferences."""
+        curr = self.audio_manager.settings.audio_dynamic_horror_enabled
+        self.audio_manager.set_dynamic_horror(not curr, persist=True)
         self._refresh_display()
 
     def action_dismiss_modal(self) -> None:

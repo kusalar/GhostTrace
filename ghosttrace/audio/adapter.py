@@ -52,6 +52,7 @@ class AudioEventAdapter:
         cooldowns: dict[AudioEventId, float] | None = None,
         typing_effects: Any | None = None,
         whisper_scheduler: Any | None = None,
+        horror_director: Any | None = None,
     ) -> None:
         self.audio_manager = audio_manager
         self._lock = threading.Lock()
@@ -60,6 +61,25 @@ class AudioEventAdapter:
         self._experience_mode: str = "normal"
         self._typing_effects = typing_effects
         self._whisper_scheduler = whisper_scheduler
+        if horror_director is not None:
+            self.horror_director = horror_director
+        elif audio_manager is not None:
+            from ghosttrace.audio.horror_director import HorrorAudioDirector
+
+            self.horror_director = HorrorAudioDirector(
+                audio_manager=audio_manager,
+                settings=getattr(audio_manager, "settings", None),
+                experience_mode=self._experience_mode,
+            )
+        else:
+            self.horror_director = None
+
+        if (
+            self.audio_manager is not None
+            and self.horror_director is not None
+            and hasattr(self.audio_manager, "set_director")
+        ):
+            self.audio_manager.set_director(self.horror_director)
 
         # Bounded cooldown and deduplication state
         self._cooldowns: dict[AudioEventId, float] = (
@@ -106,6 +126,9 @@ class AudioEventAdapter:
 
         if self._whisper_scheduler is not None:
             self._whisper_scheduler.set_experience_mode(norm_mode)
+
+        if self.horror_director is not None:
+            self.horror_director.set_experience_mode(norm_mode)
 
         if self.audio_manager is None:
             return
@@ -157,6 +180,9 @@ class AudioEventAdapter:
 
             self._last_event_times[event_id] = now
 
+        if self.horror_director is not None:
+            return self.horror_director.dispatch_event(event_id, volume_scale=volume_scale, now=now)
+
         try:
             return bool(self.audio_manager.play(event_id, volume_scale=volume_scale))
         except Exception as exc:
@@ -194,6 +220,13 @@ class AudioEventAdapter:
         logger.debug("Dispatching application shutdown audio event.")
         # Play shutdown cue before teardown
         played = self._safe_play(AudioEventId.SHUTDOWN, enforce_cooldown=False)
+
+        # Teardown horror director cleanly
+        if self.horror_director is not None:
+            try:
+                self.horror_director.shutdown()
+            except Exception as exc:
+                logger.debug("Error shutting down horror director: %s", exc)
 
         # Teardown whisper scheduler cleanly
         if self._whisper_scheduler is not None:
@@ -274,12 +307,16 @@ class AudioEventAdapter:
         No keystroke character, keycode, or text content is ever accepted or inspected.
         Only temporal typing metadata is processed.
         """
+        if self.horror_director is not None:
+            self.horror_director.record_typing_activity(now=now)
+
         if self._typing_effects is None:
             from ghosttrace.audio.typing_effects import TypingEffectsManager
 
             self._typing_effects = TypingEffectsManager(
                 audio_manager=self.audio_manager,
                 audio_adapter=self,
+                horror_director=self.horror_director,
             )
         return self._typing_effects.record_keystroke(now=now)
 
@@ -312,6 +349,8 @@ class AudioEventAdapter:
                 return False
 
         logger.debug("Developer coding task succeeded (%s).", intent)
+        if self.horror_director is not None:
+            self.horror_director.record_developer_success()
         return self._safe_play(AudioEventId.CODING_SUCCESS, enforce_cooldown=True)
 
     def on_app_error(self, error: Exception | str | None = None) -> bool:

@@ -91,6 +91,7 @@ class TypingEffectsManager:
         self,
         audio_manager: AudioManager | None = None,
         audio_adapter: AudioEventAdapter | None = None,
+        horror_director: Any | None = None,
         random_func: Callable[[], float] | None = None,
         time_func: Callable[[], float] | None = None,
         inactivity_threshold: float = 1.2,
@@ -98,6 +99,7 @@ class TypingEffectsManager:
     ) -> None:
         self.audio_manager = audio_manager
         self.audio_adapter = audio_adapter
+        self.horror_director = horror_director
         self.random_func = random_func or random.random
         self.time_func = time_func or time.monotonic
         self.inactivity_threshold = inactivity_threshold
@@ -259,7 +261,17 @@ class TypingEffectsManager:
 
             volume_scale = profile.get("volume_scale", 0.25)
 
-        # Dispatch playback asynchronously through AudioManager
+        # Coordinate with HorrorAudioDirector if active
+        director = self.horror_director or (
+            getattr(self.audio_adapter, "horror_director", None) if self.audio_adapter else None
+        )
+        if director is not None and director.is_enabled:
+            allowed = director.dispatch_event(
+                chosen_event, volume_scale=volume_scale, now=current_time
+            )
+            return chosen_event if allowed else None
+
+        # Standard uncoordinated fallback through AudioManager
         if self.audio_manager is not None:
             try:
                 self.audio_manager.play(chosen_event, volume_scale=volume_scale)

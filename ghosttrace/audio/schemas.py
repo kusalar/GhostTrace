@@ -110,3 +110,15 @@ class AudioStatus(BaseModel):
     scheduled_whispers_enabled: bool = Field(
         default=False, description="Whether scheduled whisper sound effects are active."
     )
+    dynamic_horror_enabled: bool = Field(
+        default=False, description="Whether dynamic horror event orchestration is active."
+    )
+    horror_intensity: str = Field(
+        default="dormant", description="Current dynamic horror intensity state."
+    )
+    atmospheric_events_in_window: int = Field(
+        default=0, description="Count of atmospheric horror events in active rolling window."
+    )
+    last_suppression_reason: str | None = Field(
+        default=None, description="Reason for most recent suppressed atmospheric event."
+    )

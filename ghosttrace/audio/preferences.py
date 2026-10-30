@@ -51,6 +51,10 @@ class AudioPreferences(BaseModel):
         default=False,
         description="Whether scheduled whisper sound effects are enabled.",
     )
+    dynamic_horror_enabled: bool = Field(
+        default=False,
+        description="Whether dynamic horror event orchestration is enabled.",
+    )
 
     @field_validator("volume", "ambient_volume")
     @classmethod
@@ -202,6 +206,15 @@ def apply_preferences_with_precedence(
     else:
         effective_whispers = prefs.scheduled_whispers_enabled
 
+    # 7. Dynamic horror orchestration resolution
+    env_horror_raw = os.environ.get("GHOSTTRACE_AUDIO_DYNAMIC_HORROR_ENABLED")
+    if env_horror_raw is not None:
+        effective_horror = env_horror_raw.strip().lower() in ("true", "1", "yes", "on")
+    elif "audio_dynamic_horror_enabled" in getattr(settings, "model_fields_set", set()):
+        effective_horror = settings.audio_dynamic_horror_enabled
+    else:
+        effective_horror = prefs.dynamic_horror_enabled
+
     return {
         "enabled": effective_enabled,
         "volume": effective_volume,
@@ -209,4 +222,5 @@ def apply_preferences_with_precedence(
         "muted": effective_muted,
         "haunted_keystrokes_enabled": effective_haunted,
         "scheduled_whispers_enabled": effective_whispers,
+        "dynamic_horror_enabled": effective_horror,
     }

@@ -511,6 +511,11 @@ def audio_status_cmd() -> None:
             else "[dim #ff5555]DISABLED[/]"
         )
         console.print(f"  Scheduled Whispers : {whispers_badge}")
+        horror_badge = (
+            "[bold #00ff66]ENABLED[/]" if st.dynamic_horror_enabled else "[dim #ff5555]DISABLED[/]"
+        )
+        console.print(f"  Horror Director    : {horror_badge}")
+        console.print(f"  Horror Intensity   : [bold #ffaa00]{st.horror_intensity.upper()}[/]")
         console.print(f"  Experience Mode    : [bold #00ff66]{haunt.mode.value.upper()}[/]")
         console.print("==================================================")
     finally:
@@ -719,6 +724,41 @@ def audio_whispers_cmd(
             console.print("[bold #00ff66]Scheduled whispers ENABLED. Atmospheric cues active.[/]")
         else:
             console.print("[bold #ffaa00]Scheduled whispers DISABLED.[/]")
+    finally:
+        mgr.shutdown()
+
+
+@audio_app.command(name="horror")
+def audio_horror_cmd(
+    state: str = typer.Argument(..., help="Turn dynamic horror director 'on' or 'off'"),
+) -> None:
+    """Enable or disable centralized dynamic horror event orchestration."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+
+    norm = state.strip().lower()
+    console = Console()
+    if norm in ("on", "enable", "1", "true"):
+        enable_val = True
+    elif norm in ("off", "disable", "0", "false"):
+        enable_val = False
+    else:
+        console.print(f"[bold #ff5555]Invalid state '{state}'. Use 'on' or 'off'.[/]")
+        raise typer.Exit(code=1)
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    try:
+        mgr.set_dynamic_horror(enable_val, persist=True)
+        if enable_val:
+            console.print(
+                "[bold #00ff66]Dynamic horror event orchestration ENABLED. "
+                "Coordinating keystrokes, whispers, and glitches.[/]"
+            )
+        else:
+            console.print("[bold #ffaa00]Dynamic horror event orchestration DISABLED.[/]")
     finally:
         mgr.shutdown()
 
