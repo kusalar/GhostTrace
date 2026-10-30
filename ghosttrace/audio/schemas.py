@@ -104,3 +104,6 @@ class AudioStatus(BaseModel):
     active_voices_count: int = Field(
         default=0, description="Number of sound effects currently playing."
     )
+    haunted_keystrokes_enabled: bool = Field(
+        default=False, description="Whether haunted typing sound effects are active."
+    )

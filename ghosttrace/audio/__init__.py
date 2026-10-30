@@ -27,8 +27,10 @@ from ghosttrace.audio.schemas import (
     AudioStatus,
     SoundEffect,
 )
+from ghosttrace.audio.typing_effects import TYPING_MODE_PROFILES, TypingEffectsManager
 
 __all__ = [
+    "TYPING_MODE_PROFILES",
     "AssetNotFoundError",
     "AudioBackend",
     "AudioCatalog",
@@ -47,6 +49,7 @@ __all__ = [
     "NotificationSeverity",
     "NullAudioBackend",
     "SoundEffect",
+    "TypingEffectsManager",
     "apply_preferences_with_precedence",
     "get_audio_preferences_path",
     "load_audio_preferences",

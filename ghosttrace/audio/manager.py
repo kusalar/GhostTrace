@@ -46,6 +46,9 @@ class AudioManager:
         self.settings.audio_volume = resolved["volume"]
         self.settings.audio_ambient_volume = resolved["ambient_volume"]
         self.settings.audio_muted = resolved["muted"]
+        self.settings.audio_haunted_keystrokes_enabled = resolved.get(
+            "haunted_keystrokes_enabled", False
+        )
 
         self._volume: float = self.settings.audio_volume
         self._ambient_volume: float = self.settings.audio_ambient_volume
@@ -208,6 +211,7 @@ class AudioManager:
             volume=self._volume,
             ambient_volume=self._ambient_volume,
             muted=self._is_muted,
+            haunted_keystrokes_enabled=self.settings.audio_haunted_keystrokes_enabled,
         )
         save_audio_preferences(prefs, get_audio_preferences_path(self.settings))
 
@@ -231,6 +235,7 @@ class AudioManager:
                 is_muted=self._is_muted,
                 ambient_playing=bool(backend_state.get("ambient_playing", False)),
                 active_voices_count=int(backend_state.get("active_voices", 0)),
+                haunted_keystrokes_enabled=self.settings.audio_haunted_keystrokes_enabled,
             )
 
     def resolve_asset_path(self, event_id: AudioEventId | str) -> Path | None:
@@ -351,6 +356,19 @@ class AudioManager:
             self._is_muted = False
             self.settings.audio_muted = False
             self.backend.set_muted(False)
+            if persist:
+                self._persist_current_preferences()
+
+    @property
+    def haunted_keystrokes_enabled(self) -> bool:
+        """Return whether haunted keystrokes are enabled."""
+        with self._lock:
+            return self.settings.audio_haunted_keystrokes_enabled
+
+    def set_haunted_keystrokes(self, enabled: bool, persist: bool = True) -> None:
+        """Configure haunted keystroke effects and optionally persist preferences."""
+        with self._lock:
+            self.settings.audio_haunted_keystrokes_enabled = bool(enabled)
             if persist:
                 self._persist_current_preferences()
 

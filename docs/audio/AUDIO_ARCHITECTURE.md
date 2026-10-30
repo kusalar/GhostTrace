@@ -310,3 +310,34 @@ During Step 04 hardware validation, a cold-start delay of $\approx 886.6\text{ m
    - **Optimization:** Moved buffer `yield` outside the critical section in `_mixer_callback_generator()`. Calling threads now acquire the backend lock in $< 0.01\text{ ms}$ with zero lock contention.
 4. **Sample Decoding:** Procedural WAV decoding and array conversion requires only $2.6\text{ ms}$; once decoded, in-memory cache lookup operates in $0.007\text{ ms}$.
 5. **Disabled Default Protection:** With `audio_enabled=false` (the default), `NullAudioBackend` initializes in $< 0.05\text{ ms}$, ensuring zero impact on GhostTrace cold-boot time.
+
+---
+
+## 15. Haunted Keystrokes & Typing Audio Effects (v1.2.0 Step 07)
+
+Step 07 introduces subtle, context-aware typing audio manifestations implemented in [`ghosttrace.audio.typing_effects.TypingEffectsManager`](file:///d:/GhostTrace/ghosttrace/audio/typing_effects.py).
+
+### Strict Privacy Architecture
+GhostTrace strictly upholds user privacy by enforcing an uncompromising architectural boundary between keyboard input and the audio subsystem:
+- **Local Application Scope:** Only observes keyboard events delivered directly to GhostTrace's own Textual input widget (`CommandInput`).
+- **Zero Global Hooks:** Never installs global Windows hooks, DLL injections, or system-wide event listeners.
+- **Zero Character Capture:** Never receives, captures, logs, or inspects typed characters, key codes, passwords, or clipboard buffers.
+- **Aggregate Metadata Only:** Operates purely on temporal metrics: timestamp gaps, consecutive keystroke counts, and short-window typing rates (keys/second).
+- **Zero I/O & AI Overhead:** Generates zero disk writes per keystroke, zero network traffic, and zero LLM inference calls.
+
+### Behavioral Parameters per Experience Mode
+
+| Experience Mode | Base Prob | Burst Prob | Min Keys | Cooldown | Max/Min | Volume Scale | Allowed Audio Assets |
+|---|---|---|---|---|---|---|---|
+| `normal` | $6\%$ | $8\%$ | 5 | $4.0\text{ s}$ | 4 | 0.20 | `keystroke_haunt`, `glitch_digital` |
+| `ambient` | $8\%$ | $12\%$ | 4 | $3.0\text{ s}$ | 6 | 0.25 | `keystroke_haunt`, `glitch_static` |
+| `haunted` | $12\%$ | $22\%$ | 3 | $2.0\text{ s}$ | 8 | 0.35 | `keystroke_haunt`, `glitch_digital`, `glitch_static`, `glitch_corruption` |
+| `focus` | **0%** | **0%** | N/A | N/A | 0 | 0.00 | **All typing effects suppressed immediately** |
+
+### Event Lifecycle & Burst Detection
+1. **Debouncing:** Rapid key events arriving faster than $30\text{ ms}$ are debounced to eliminate mechanical key chatter.
+2. **Inactivity Reset:** A typing pause exceeding $1.2\text{ s}$ resets consecutive stroke counts, preventing lone accidental keypresses from triggering audio.
+3. **Burst Cadence:** When typing speed exceeds 8 keystrokes within a 2-second rolling window in `haunted` mode, the engine elevates triggering probability and introduces rare memory corruption artifacts (`glitch_corruption`).
+4. **Cooldown & Rate Ceiling:** Enforces minimum quiet intervals ($2.0\text{ s}$ to $4.0\text{ s}$) and hard per-minute ceilings (4 to 8 effects/min) to prevent audio fatigue.
+5. **Deterministic Testing:** Fully supports injectable random and monotonic clock sources for 100% deterministic test coverage.
+

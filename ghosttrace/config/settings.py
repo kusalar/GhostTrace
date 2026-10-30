@@ -323,6 +323,10 @@ class Settings(BaseSettings):
         default=False,
         description="Whether audio playback is muted.",
     )
+    audio_haunted_keystrokes_enabled: bool = Field(
+        default=False,
+        description="Enable or disable subtle atmospheric keystroke audio effects while typing.",
+    )
     audio_asset_dir: Path | None = Field(
         default=None,
         description="Directory for local horror sound effect assets. Defaults to assets/audio.",
@@ -661,6 +665,11 @@ class Settings(BaseSettings):
             msg = f"Invalid audio_ambient_volume {value}. Must be between 0.0 and 1.0."
             raise ValueError(msg)
         return value
+
+    @property
+    def haunted_keystrokes_enabled(self) -> bool:
+        """Alias for audio_haunted_keystrokes_enabled."""
+        return self.audio_haunted_keystrokes_enabled
 
     def model_post_init(self, __context: object) -> None:
         """Resolve computed directories and debug-level adjustments."""

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] - v1.2.0
+
+### Added
+- **Haunted Keystrokes & Context-Aware Typing Audio Effects (Step 07):**
+  - Subtle, atmospheric typing audio manifestations triggered strictly by keyboard activity within GhostTrace's own interactive Textual terminal input widget.
+  - Dedicated `TypingEffectsManager` component enforcing aggregate event counting, activity rates, dynamic cooldowns, and debouncing.
+  - Context-aware audio manifestations using existing verified procedural assets (`KEYSTROKE_HAUNT`, `GLITCH_DIGITAL`, `GLITCH_STATIC`, `GLITCH_CORRUPTION`).
+  - High-cadence typing burst detection triggering rare corruption artifacts in Haunted mode.
+  - Dedicated configuration setting `audio_haunted_keystrokes_enabled` / `haunted_keystrokes_enabled`, strictly disabled by default (`OFF`).
+  - Persistent user preference storage in `audio_preferences.json`.
+  - Full experience mode integration:
+    - `Normal`: Infrequent, very subtle keystroke echoes and digital fractures.
+    - `Ambient`: Faint static bursts and keystroke thuds coexisting with background ambient loops.
+    - `Haunted`: Full atmospheric manifestations with elevated probabilities during sustained typing bursts.
+    - `Focus`: 100% immediate suppression of all typing audio effects (Guardian safety cues remain active).
+  - TUI controls in `AudioSettingsModal`: interactive toggle button and single-key shortcut (`k`).
+  - CLI commands: `ghosttrace audio keystrokes <on|off>` and status telemetry integration.
+  - **Strict Privacy Guarantees:**
+    - Zero global keyboard hooks; observes only input events inside GhostTrace's own Textual terminal widget.
+    - Zero inspection, capturing, storage, or logging of typed characters, passwords, or command text.
+    - Operates purely on aggregate temporal metadata (timestamps, key counts, intervals).
+    - Zero network egress, zero disk writes per keystroke, and zero AI inference overhead.
+
+---
+
 ## [1.1.0] - 2026-10-30
 
 ### Added

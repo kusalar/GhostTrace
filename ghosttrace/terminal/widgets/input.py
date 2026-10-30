@@ -53,6 +53,14 @@ class CommandInput(Input):
 
     def on_key(self, event: events.Key) -> None:
         """Handle Up and Down arrow keys to navigate command history."""
+        # Privacy: Notify app of aggregate typing activity WITHOUT passing key or character data
+        try:
+            app = self.app
+            if hasattr(app, "on_keystroke_activity"):
+                app.on_keystroke_activity()
+        except Exception:
+            pass
+
         if event.key == "up":
             prev_cmd = self.history.get_previous(self.value)
             if prev_cmd is not None:

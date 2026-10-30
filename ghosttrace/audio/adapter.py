@@ -50,12 +50,14 @@ class AudioEventAdapter:
         self,
         audio_manager: AudioManager | None = None,
         cooldowns: dict[AudioEventId, float] | None = None,
+        typing_effects: Any | None = None,
     ) -> None:
         self.audio_manager = audio_manager
         self._lock = threading.Lock()
         self._is_shutdown = False
         self._startup_dispatched = False
         self._experience_mode: str = "normal"
+        self._typing_effects = typing_effects
 
         # Bounded cooldown and deduplication state
         self._cooldowns: dict[AudioEventId, float] = (
@@ -96,6 +98,9 @@ class AudioEventAdapter:
             self._experience_mode = norm_mode
 
         logger.debug("AudioEventAdapter experience mode switched to '%s'.", norm_mode)
+
+        if self._typing_effects is not None:
+            self._typing_effects.set_experience_mode(norm_mode)
 
         if self.audio_manager is None:
             return
@@ -249,6 +254,22 @@ class AudioEventAdapter:
                 self._last_error_time = now
 
         return self._safe_play(target_event, enforce_cooldown=True)
+
+    def on_keystroke_activity(self, now: float | None = None) -> AudioEventId | None:
+        """Triggered upon aggregate user typing activity in the terminal input widget.
+
+        Strict Privacy Notice:
+        No keystroke character, keycode, or text content is ever accepted or inspected.
+        Only temporal typing metadata is processed.
+        """
+        if self._typing_effects is None:
+            from ghosttrace.audio.typing_effects import TypingEffectsManager
+
+            self._typing_effects = TypingEffectsManager(
+                audio_manager=self.audio_manager,
+                audio_adapter=self,
+            )
+        return self._typing_effects.record_keystroke(now=now)
 
     def on_guardian_intercept(self, command: str = "") -> bool:
         """Triggered when Command Guardian intercepts a dangerous command for approval.

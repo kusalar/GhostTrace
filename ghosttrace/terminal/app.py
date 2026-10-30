@@ -18,6 +18,7 @@ from textual.widgets import Footer, Input, Static
 from ghosttrace.ai.engine import AIEngine
 from ghosttrace.audio.adapter import AudioEventAdapter
 from ghosttrace.audio.manager import AudioManager
+from ghosttrace.audio.typing_effects import TypingEffectsManager
 from ghosttrace.config.settings import Settings, get_settings
 from ghosttrace.developer.engine import DeveloperEngine
 from ghosttrace.ghost.engine import GhostEngine
@@ -175,6 +176,11 @@ class GhostTraceApp(App[int]):
             self.audio_manager = AudioManager(self.settings)
 
         self.audio_adapter = AudioEventAdapter(self.audio_manager)
+        self.typing_effects = TypingEffectsManager(
+            audio_manager=self.audio_manager,
+            audio_adapter=self.audio_adapter,
+        )
+        self.audio_adapter._typing_effects = self.typing_effects
         self._last_observed_mood: str | None = None
         self._last_observed_haunt_mode: str | None = None
         self.last_user_activity = time.time()
@@ -334,6 +340,15 @@ class GhostTraceApp(App[int]):
                 )
         except Exception as exc:
             logger.debug("Could not refresh subsystem status: %s", exc)
+
+    def on_keystroke_activity(self) -> None:
+        """Handle aggregate typing activity signal from the input widget.
+
+        Strict Privacy Notice:
+        No keystroke character, keycode, or text content is ever accepted or inspected.
+        """
+        if hasattr(self, "typing_effects") and self.typing_effects is not None:
+            self.typing_effects.record_keystroke()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle command submission or route natural-language input to AI engine."""

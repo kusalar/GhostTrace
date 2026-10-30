@@ -43,6 +43,10 @@ class AudioPreferences(BaseModel):
         default=False,
         description="Whether audio output is temporarily muted.",
     )
+    haunted_keystrokes_enabled: bool = Field(
+        default=False,
+        description="Whether haunted typing sound effects are enabled.",
+    )
 
     @field_validator("volume", "ambient_volume")
     @classmethod
@@ -176,9 +180,19 @@ def apply_preferences_with_precedence(
     else:
         effective_muted = prefs.muted
 
+    # 5. Haunted keystrokes resolution
+    env_haunted_raw = os.environ.get("GHOSTTRACE_AUDIO_HAUNTED_KEYSTROKES_ENABLED")
+    if env_haunted_raw is not None:
+        effective_haunted = env_haunted_raw.strip().lower() in ("true", "1", "yes", "on")
+    elif "audio_haunted_keystrokes_enabled" in getattr(settings, "model_fields_set", set()):
+        effective_haunted = settings.audio_haunted_keystrokes_enabled
+    else:
+        effective_haunted = prefs.haunted_keystrokes_enabled
+
     return {
         "enabled": effective_enabled,
         "volume": effective_volume,
         "ambient_volume": effective_ambient_volume,
         "muted": effective_muted,
+        "haunted_keystrokes_enabled": effective_haunted,
     }

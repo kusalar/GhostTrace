@@ -90,6 +90,9 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 - [x] **Step 05: Audio Controls & Experience Mode Integration** (TUI `AudioSettingsModal`, CLI commands, volume, mute, persistence, Focus mode policy)
 - [x] **Step 06: Final QA, Performance Validation & Production Packaging** (PyInstaller v1.1.0 release bundle, acceptance tests)
 
+### Version 1.2.0 Atmospheric Evolution (In Progress)
+- [x] **Step 07: Haunted Keystrokes & Context-Aware Typing Effects** (`TypingEffectsManager`, aggregate typing detection, burst cadence, strict local privacy)
+
 ---
 
 ## 6. Installation & Quick Start
@@ -254,6 +257,10 @@ ghosttrace audio ambient-volume 0.25
 # Mute and unmute audio output
 ghosttrace audio mute
 ghosttrace audio unmute
+
+# Enable or disable subtle haunted typing keystroke effects
+ghosttrace audio keystrokes on
+ghosttrace audio keystrokes off
 
 # Play short test sound effect (notification ping)
 ghosttrace audio test

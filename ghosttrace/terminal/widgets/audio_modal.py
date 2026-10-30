@@ -24,6 +24,7 @@ class AudioSettingsModal(ModalScreen[None]):
         Binding("t", "test_sound", "Test Sound", show=True),
         Binding("m", "toggle_mute", "Toggle Mute", show=True),
         Binding("e", "toggle_enable", "Toggle Enable", show=True),
+        Binding("k", "toggle_keystrokes", "Toggle Keystrokes", show=True),
         Binding("+", "vol_up", "Vol +", show=False),
         Binding("-", "vol_down", "Vol -", show=False),
     ]
@@ -108,6 +109,13 @@ class AudioSettingsModal(ModalScreen[None]):
                     id="btn-toggle-mute",
                     classes="control-btn",
                 )
+                yield Button(
+                    "Keystrokes: ON"
+                    if self.audio_manager.settings.audio_haunted_keystrokes_enabled
+                    else "Keystrokes: OFF",
+                    id="btn-toggle-keystrokes",
+                    classes="control-btn",
+                )
                 yield Button("Test Sound", id="btn-test-sound", classes="control-btn")
 
             with Horizontal(classes="action-row"):
@@ -154,11 +162,17 @@ class AudioSettingsModal(ModalScreen[None]):
             "focus": "Focus Mode: Non-essential audio suppressed | Guardian active",
         }.get(exp_mode.lower(), "Standard event sounds")
 
+        keystrokes_badge = (
+            "[bold #00ff66]ON[/]"
+            if self.audio_manager.settings.audio_haunted_keystrokes_enabled
+            else "[dim #ff5555]OFF[/]"
+        )
         lines = [
             f"  Subsystem State    : {state_badge} (Mute: {mute_badge})",
             f"  Audio Backend      : [cyan]{st.backend_type.upper()}[/] ({device_badge})",
             f"  Master Volume      : {vol_bar} [bold]{int(st.volume * 100)}%[/]",
             f"  Ambient Volume     : {amb_bar} [bold]{int(st.ambient_volume * 100)}%[/]",
+            f"  Haunted Keystrokes : {keystrokes_badge} (Typing effects)",
             f"  Experience Mode    : [bold #00ff66]{exp_mode.upper()}[/] — {policy_desc}",
         ]
         return "\n".join(lines)
@@ -178,6 +192,13 @@ class AudioSettingsModal(ModalScreen[None]):
 
             mute_btn = self.query_one("#btn-toggle-mute", Button)
             mute_btn.label = "Unmute" if self.audio_manager._is_muted else "Mute"
+
+            keystrokes_btn = self.query_one("#btn-toggle-keystrokes", Button)
+            keystrokes_btn.label = (
+                "Keystrokes: ON"
+                if self.audio_manager.settings.audio_haunted_keystrokes_enabled
+                else "Keystrokes: OFF"
+            )
         except Exception:
             pass
 
@@ -189,6 +210,8 @@ class AudioSettingsModal(ModalScreen[None]):
             self.action_toggle_enable()
         elif btn_id == "btn-toggle-mute":
             self.action_toggle_mute()
+        elif btn_id == "btn-toggle-keystrokes":
+            self.action_toggle_keystrokes()
         elif btn_id == "btn-test-sound":
             self.action_test_sound()
         elif btn_id == "btn-vol-down":
@@ -247,6 +270,12 @@ class AudioSettingsModal(ModalScreen[None]):
     def action_test_sound(self) -> None:
         """Play short test sound effect in background thread."""
         self.audio_manager.play_test_sound()
+
+    def action_toggle_keystrokes(self) -> None:
+        """Toggle haunted keystrokes state immediately and persist preferences."""
+        curr = self.audio_manager.settings.audio_haunted_keystrokes_enabled
+        self.audio_manager.set_haunted_keystrokes(not curr, persist=True)
+        self._refresh_display()
 
     def action_dismiss_modal(self) -> None:
         self.dismiss()
