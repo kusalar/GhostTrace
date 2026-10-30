@@ -49,6 +49,9 @@ class AudioManager:
         self.settings.audio_haunted_keystrokes_enabled = resolved.get(
             "haunted_keystrokes_enabled", False
         )
+        self.settings.audio_scheduled_whispers_enabled = resolved.get(
+            "scheduled_whispers_enabled", False
+        )
 
         self._volume: float = self.settings.audio_volume
         self._ambient_volume: float = self.settings.audio_ambient_volume
@@ -212,6 +215,7 @@ class AudioManager:
             ambient_volume=self._ambient_volume,
             muted=self._is_muted,
             haunted_keystrokes_enabled=self.settings.audio_haunted_keystrokes_enabled,
+            scheduled_whispers_enabled=self.settings.audio_scheduled_whispers_enabled,
         )
         save_audio_preferences(prefs, get_audio_preferences_path(self.settings))
 
@@ -236,6 +240,7 @@ class AudioManager:
                 ambient_playing=bool(backend_state.get("ambient_playing", False)),
                 active_voices_count=int(backend_state.get("active_voices", 0)),
                 haunted_keystrokes_enabled=self.settings.audio_haunted_keystrokes_enabled,
+                scheduled_whispers_enabled=self.settings.audio_scheduled_whispers_enabled,
             )
 
     def resolve_asset_path(self, event_id: AudioEventId | str) -> Path | None:
@@ -369,6 +374,19 @@ class AudioManager:
         """Configure haunted keystroke effects and optionally persist preferences."""
         with self._lock:
             self.settings.audio_haunted_keystrokes_enabled = bool(enabled)
+            if persist:
+                self._persist_current_preferences()
+
+    @property
+    def scheduled_whispers_enabled(self) -> bool:
+        """Return whether scheduled whispers are enabled."""
+        with self._lock:
+            return self.settings.audio_scheduled_whispers_enabled
+
+    def set_scheduled_whispers(self, enabled: bool, persist: bool = True) -> None:
+        """Configure scheduled whisper effects and optionally persist preferences."""
+        with self._lock:
+            self.settings.audio_scheduled_whispers_enabled = bool(enabled)
             if persist:
                 self._persist_current_preferences()
 

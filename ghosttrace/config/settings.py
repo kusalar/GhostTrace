@@ -327,6 +327,10 @@ class Settings(BaseSettings):
         default=False,
         description="Enable or disable subtle atmospheric keystroke audio effects while typing.",
     )
+    audio_scheduled_whispers_enabled: bool = Field(
+        default=False,
+        description="Enable or disable rare, atmospheric whisper sound effects.",
+    )
     audio_asset_dir: Path | None = Field(
         default=None,
         description="Directory for local horror sound effect assets. Defaults to assets/audio.",
@@ -670,6 +674,11 @@ class Settings(BaseSettings):
     def haunted_keystrokes_enabled(self) -> bool:
         """Alias for audio_haunted_keystrokes_enabled."""
         return self.audio_haunted_keystrokes_enabled
+
+    @property
+    def scheduled_whispers_enabled(self) -> bool:
+        """Alias for audio_scheduled_whispers_enabled."""
+        return self.audio_scheduled_whispers_enabled
 
     def model_post_init(self, __context: object) -> None:
         """Resolve computed directories and debug-level adjustments."""

@@ -28,9 +28,11 @@ from ghosttrace.audio.schemas import (
     SoundEffect,
 )
 from ghosttrace.audio.typing_effects import TYPING_MODE_PROFILES, TypingEffectsManager
+from ghosttrace.audio.whisper_scheduler import WHISPER_MODE_PROFILES, WhisperScheduler
 
 __all__ = [
     "TYPING_MODE_PROFILES",
+    "WHISPER_MODE_PROFILES",
     "AssetNotFoundError",
     "AudioBackend",
     "AudioCatalog",
@@ -50,6 +52,7 @@ __all__ = [
     "NullAudioBackend",
     "SoundEffect",
     "TypingEffectsManager",
+    "WhisperScheduler",
     "apply_preferences_with_precedence",
     "get_audio_preferences_path",
     "load_audio_preferences",

@@ -19,6 +19,7 @@ from ghosttrace.ai.engine import AIEngine
 from ghosttrace.audio.adapter import AudioEventAdapter
 from ghosttrace.audio.manager import AudioManager
 from ghosttrace.audio.typing_effects import TypingEffectsManager
+from ghosttrace.audio.whisper_scheduler import WhisperScheduler
 from ghosttrace.config.settings import Settings, get_settings
 from ghosttrace.developer.engine import DeveloperEngine
 from ghosttrace.ghost.engine import GhostEngine
@@ -181,6 +182,14 @@ class GhostTraceApp(App[int]):
             audio_adapter=self.audio_adapter,
         )
         self.audio_adapter._typing_effects = self.typing_effects
+        self.whisper_scheduler = WhisperScheduler(
+            audio_manager=self.audio_manager,
+            audio_adapter=self.audio_adapter,
+            schedule_timer_func=lambda delay, cb: self.set_timer(delay, cb),
+            cancel_timer_func=lambda t: t.stop() if hasattr(t, "stop") else None,
+            context_check_func=self._is_safe_for_whisper,
+        )
+        self.audio_adapter._whisper_scheduler = self.whisper_scheduler
         self._last_observed_mood: str | None = None
         self._last_observed_haunt_mode: str | None = None
         self.last_user_activity = time.time()
@@ -244,8 +253,12 @@ class GhostTraceApp(App[int]):
         # Dispatch application startup sound effect
         self.audio_adapter.on_startup()
 
+        # Start scheduled whisper engine
+        self.whisper_scheduler.start()
+
     def on_unmount(self) -> None:
         """Release local AI and audio resources cleanly upon shutdown."""
+        self.whisper_scheduler.shutdown()
         self.audio_adapter.on_shutdown()
         self.ai_engine.unload_model()
         if self.memory_engine is not None:
@@ -568,6 +581,17 @@ class GhostTraceApp(App[int]):
         finally:
             self.is_generating = False
             self.call_from_thread(self._refresh_subsystem_status)
+
+    def _is_safe_for_whisper(self) -> bool:
+        """Context check ensuring scheduled whispers do not interrupt active command work."""
+        if getattr(self, "is_generating", False) or getattr(self, "is_executing_command", False):
+            return False
+        has_pending = bool(
+            getattr(self, "guardian_engine", None) is not None
+            and hasattr(self.guardian_engine, "approval_mgr")
+            and self.guardian_engine.approval_mgr.has_pending()
+        )
+        return not has_pending
 
     def _check_idle_whisper(self) -> None:
         """Check for genuine terminal idle whisper events."""

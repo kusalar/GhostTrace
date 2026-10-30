@@ -341,3 +341,31 @@ GhostTrace strictly upholds user privacy by enforcing an uncompromising architec
 4. **Cooldown & Rate Ceiling:** Enforces minimum quiet intervals ($2.0\text{ s}$ to $4.0\text{ s}$) and hard per-minute ceilings (4 to 8 effects/min) to prevent audio fatigue.
 5. **Deterministic Testing:** Fully supports injectable random and monotonic clock sources for 100% deterministic test coverage.
 
+---
+
+## 16. Scheduled Whispers & Time-Aware Audio Manifestations (v1.2.0 Step 08)
+
+Step 08 introduces rare, unpredictable, atmospheric whisper-like sound effects managed by [`ghosttrace.audio.whisper_scheduler.WhisperScheduler`](file:///d:/GhostTrace/ghosttrace/audio/whisper_scheduler.py).
+
+### Synthetic Procedural Nature & Privacy Guarantees
+- **100% Procedural Audio Effects:** All whisper manifestations use original mathematical sound synthesis assets (`whisper_spectral`, `whisper_breath`, `whisper_murmur`). There is strictly zero spoken dialogue, zero text-to-speech (TTS), zero voice interaction, zero AI-generated speech, and zero cloud synthesis.
+- **Zero Audio Capture:** Zero microphone access, capture buffers, or recording APIs.
+- **Zero Network Dependency:** Fully offline execution with zero telemetry or network calls.
+- **Strict Opt-In Preference:** Disabled by default (`audio_scheduled_whispers_enabled = false`).
+
+### Scheduling Architecture & Concurrency Model
+- **Event-Driven Timers:** Integrates with Textual's async event loop (`self.set_timer`), creating zero permanent Python worker threads.
+- **Zero Busy Polling:** Never uses `time.sleep()` in UI threads and runs no polling loops.
+- **Context-Aware Suppression:** Immediately suspends whisper opportunities during active command generation (`is_generating`), command execution, or active Command Guardian confirmation modals.
+- **Clean Shutdown Lifecycle:** Pending timers are safely cancelled upon application shutdown or modal dismissal.
+
+### Experience Mode Tuning Profiles
+
+| Experience Mode | Randomized Interval Range | Cooldown | Hourly Ceiling | Volume Scale | Permitted Sound Assets |
+|---|---|---|---|---|---|
+| `normal` | $180.0\text{ s} - 360.0\text{ s}$ (3–6 min) | $120.0\text{ s}$ | 3 / hour | 0.20 | `whisper_breath` |
+| `ambient` | $90.0\text{ s} - 210.0\text{ s}$ (1.5–3.5 min) | $60.0\text{ s}$ | 6 / hour | 0.25 | `whisper_breath`, `whisper_spectral` |
+| `haunted` | $45.0\text{ s} - 120.0\text{ s}$ (45s–2 min) | $30.0\text{ s}$ | 12 / hour | 0.35 | `whisper_breath`, `whisper_spectral`, `whisper_murmur` |
+| `focus` | **Suppressed** | N/A | 0 / hour | 0.00 | **All scheduled whispers suppressed immediately** |
+
+

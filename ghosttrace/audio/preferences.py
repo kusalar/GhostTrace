@@ -47,6 +47,10 @@ class AudioPreferences(BaseModel):
         default=False,
         description="Whether haunted typing sound effects are enabled.",
     )
+    scheduled_whispers_enabled: bool = Field(
+        default=False,
+        description="Whether scheduled whisper sound effects are enabled.",
+    )
 
     @field_validator("volume", "ambient_volume")
     @classmethod
@@ -189,10 +193,20 @@ def apply_preferences_with_precedence(
     else:
         effective_haunted = prefs.haunted_keystrokes_enabled
 
+    # 6. Scheduled whispers resolution
+    env_whispers_raw = os.environ.get("GHOSTTRACE_AUDIO_SCHEDULED_WHISPERS_ENABLED")
+    if env_whispers_raw is not None:
+        effective_whispers = env_whispers_raw.strip().lower() in ("true", "1", "yes", "on")
+    elif "audio_scheduled_whispers_enabled" in getattr(settings, "model_fields_set", set()):
+        effective_whispers = settings.audio_scheduled_whispers_enabled
+    else:
+        effective_whispers = prefs.scheduled_whispers_enabled
+
     return {
         "enabled": effective_enabled,
         "volume": effective_volume,
         "ambient_volume": effective_ambient_volume,
         "muted": effective_muted,
         "haunted_keystrokes_enabled": effective_haunted,
+        "scheduled_whispers_enabled": effective_whispers,
     }

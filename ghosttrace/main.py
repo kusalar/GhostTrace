@@ -505,6 +505,12 @@ def audio_status_cmd() -> None:
             else "[dim #ff5555]DISABLED[/]"
         )
         console.print(f"  Haunted Keystrokes : {keystrokes_badge}")
+        whispers_badge = (
+            "[bold #00ff66]ENABLED[/]"
+            if st.scheduled_whispers_enabled
+            else "[dim #ff5555]DISABLED[/]"
+        )
+        console.print(f"  Scheduled Whispers : {whispers_badge}")
         console.print(f"  Experience Mode    : [bold #00ff66]{haunt.mode.value.upper()}[/]")
         console.print("==================================================")
     finally:
@@ -678,6 +684,41 @@ def audio_keystrokes_cmd(
             )
         else:
             console.print("[bold #ffaa00]Haunted keystrokes DISABLED.[/]")
+    finally:
+        mgr.shutdown()
+
+
+@audio_app.command(name="whispers")
+def audio_whispers_cmd(
+    state: str = typer.Argument(
+        ...,
+        help="Desired state: 'on', 'enable', 'off', or 'disable'.",
+    ),
+) -> None:
+    """Enable or disable subtle scheduled whisper sound effects."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+
+    norm = state.strip().lower()
+    console = Console()
+    if norm in ("on", "enable", "1", "true"):
+        enable_val = True
+    elif norm in ("off", "disable", "0", "false"):
+        enable_val = False
+    else:
+        console.print(f"[bold #ff5555]Invalid state '{state}'. Use 'on' or 'off'.[/]")
+        raise typer.Exit(code=1)
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    try:
+        mgr.set_scheduled_whispers(enable_val, persist=True)
+        if enable_val:
+            console.print("[bold #00ff66]Scheduled whispers ENABLED. Atmospheric cues active.[/]")
+        else:
+            console.print("[bold #ffaa00]Scheduled whispers DISABLED.[/]")
     finally:
         mgr.shutdown()
 

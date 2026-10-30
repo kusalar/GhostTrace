@@ -29,6 +29,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Zero inspection, capturing, storage, or logging of typed characters, passwords, or command text.
     - Operates purely on aggregate temporal metadata (timestamps, key counts, intervals).
     - Zero network egress, zero disk writes per keystroke, and zero AI inference overhead.
+- **Scheduled Whispers & Time-Aware Audio Manifestations (Step 08):**
+  - Rare, unpredictable atmospheric whisper manifestations powered by procedural audio assets (`whisper_spectral`, `whisper_breath`, `whisper_murmur`).
+  - Purely synthetic/instrumental sound effects; zero spoken words, speech, TTS, or voice interaction.
+  - Dedicated `WhisperScheduler` component integrated with Textual's event loop timer; zero additional persistent worker threads.
+  - Configurable randomized intervals, cooldowns, and rolling hourly frequency limits.
+  - Context-aware suppression policy: whispers are silenced during LLM generation, command execution, or active Command Guardian approval prompts.
+  - Full experience mode integration:
+    - `Normal`: Very rare exhalations (3–6 min interval, 3/hour max).
+    - `Ambient`: Rare spectral murmurs at low volume (1.5–3.5 min interval, 6/hour max).
+    - `Haunted`: Moderately rare whisper sweeps (45s–2 min interval, 12/hour max).
+    - `Focus`: 100% immediate suppression of all scheduled whispers.
+  - Dedicated configuration setting `audio_scheduled_whispers_enabled` / `scheduled_whispers_enabled`, strictly disabled by default (`OFF`).
+  - Persistent user preference storage in `audio_preferences.json`.
+  - TUI controls in `AudioSettingsModal`: interactive toggle button and single-key shortcut (`w`).
+  - CLI commands: `ghosttrace audio whispers <on|off>` and status telemetry integration.
+  - Safe lifecycle management with clean cancellation upon unmount and shutdown.
 
 ---
 

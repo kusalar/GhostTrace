@@ -107,3 +107,6 @@ class AudioStatus(BaseModel):
     haunted_keystrokes_enabled: bool = Field(
         default=False, description="Whether haunted typing sound effects are active."
     )
+    scheduled_whispers_enabled: bool = Field(
+        default=False, description="Whether scheduled whisper sound effects are active."
+    )

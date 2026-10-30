@@ -51,6 +51,7 @@ class AudioEventAdapter:
         audio_manager: AudioManager | None = None,
         cooldowns: dict[AudioEventId, float] | None = None,
         typing_effects: Any | None = None,
+        whisper_scheduler: Any | None = None,
     ) -> None:
         self.audio_manager = audio_manager
         self._lock = threading.Lock()
@@ -58,6 +59,7 @@ class AudioEventAdapter:
         self._startup_dispatched = False
         self._experience_mode: str = "normal"
         self._typing_effects = typing_effects
+        self._whisper_scheduler = whisper_scheduler
 
         # Bounded cooldown and deduplication state
         self._cooldowns: dict[AudioEventId, float] = (
@@ -101,6 +103,9 @@ class AudioEventAdapter:
 
         if self._typing_effects is not None:
             self._typing_effects.set_experience_mode(norm_mode)
+
+        if self._whisper_scheduler is not None:
+            self._whisper_scheduler.set_experience_mode(norm_mode)
 
         if self.audio_manager is None:
             return
@@ -189,6 +194,13 @@ class AudioEventAdapter:
         logger.debug("Dispatching application shutdown audio event.")
         # Play shutdown cue before teardown
         played = self._safe_play(AudioEventId.SHUTDOWN, enforce_cooldown=False)
+
+        # Teardown whisper scheduler cleanly
+        if self._whisper_scheduler is not None:
+            try:
+                self._whisper_scheduler.shutdown()
+            except Exception as exc:
+                logger.debug("Error shutting down whisper scheduler: %s", exc)
 
         # Teardown audio manager cleanly
         if self.audio_manager is not None:

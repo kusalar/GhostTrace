@@ -92,6 +92,7 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 
 ### Version 1.2.0 Atmospheric Evolution (In Progress)
 - [x] **Step 07: Haunted Keystrokes & Context-Aware Typing Effects** (`TypingEffectsManager`, aggregate typing detection, burst cadence, strict local privacy)
+- [x] **Step 08: Scheduled Whispers & Time-Aware Audio Manifestations** (`WhisperScheduler`, randomized event-loop intervals, zero threads, context suppression)
 
 ---
 
@@ -261,6 +262,10 @@ ghosttrace audio unmute
 # Enable or disable subtle haunted typing keystroke effects
 ghosttrace audio keystrokes on
 ghosttrace audio keystrokes off
+
+# Enable or disable rare, atmospheric scheduled whisper effects
+ghosttrace audio whispers on
+ghosttrace audio whispers off
 
 # Play short test sound effect (notification ping)
 ghosttrace audio test

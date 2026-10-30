@@ -25,6 +25,7 @@ class AudioSettingsModal(ModalScreen[None]):
         Binding("m", "toggle_mute", "Toggle Mute", show=True),
         Binding("e", "toggle_enable", "Toggle Enable", show=True),
         Binding("k", "toggle_keystrokes", "Toggle Keystrokes", show=True),
+        Binding("w", "toggle_whispers", "Toggle Whispers", show=True),
         Binding("+", "vol_up", "Vol +", show=False),
         Binding("-", "vol_down", "Vol -", show=False),
     ]
@@ -116,6 +117,13 @@ class AudioSettingsModal(ModalScreen[None]):
                     id="btn-toggle-keystrokes",
                     classes="control-btn",
                 )
+                yield Button(
+                    "Whispers: ON"
+                    if self.audio_manager.settings.audio_scheduled_whispers_enabled
+                    else "Whispers: OFF",
+                    id="btn-toggle-whispers",
+                    classes="control-btn",
+                )
                 yield Button("Test Sound", id="btn-test-sound", classes="control-btn")
 
             with Horizontal(classes="action-row"):
@@ -167,12 +175,18 @@ class AudioSettingsModal(ModalScreen[None]):
             if self.audio_manager.settings.audio_haunted_keystrokes_enabled
             else "[dim #ff5555]OFF[/]"
         )
+        whispers_badge = (
+            "[bold #00ff66]ON[/]"
+            if self.audio_manager.settings.audio_scheduled_whispers_enabled
+            else "[dim #ff5555]OFF[/]"
+        )
         lines = [
             f"  Subsystem State    : {state_badge} (Mute: {mute_badge})",
             f"  Audio Backend      : [cyan]{st.backend_type.upper()}[/] ({device_badge})",
             f"  Master Volume      : {vol_bar} [bold]{int(st.volume * 100)}%[/]",
             f"  Ambient Volume     : {amb_bar} [bold]{int(st.ambient_volume * 100)}%[/]",
             f"  Haunted Keystrokes : {keystrokes_badge} (Typing effects)",
+            f"  Scheduled Whispers : {whispers_badge} (Atmospheric cues)",
             f"  Experience Mode    : [bold #00ff66]{exp_mode.upper()}[/] — {policy_desc}",
         ]
         return "\n".join(lines)
@@ -199,6 +213,13 @@ class AudioSettingsModal(ModalScreen[None]):
                 if self.audio_manager.settings.audio_haunted_keystrokes_enabled
                 else "Keystrokes: OFF"
             )
+
+            whispers_btn = self.query_one("#btn-toggle-whispers", Button)
+            whispers_btn.label = (
+                "Whispers: ON"
+                if self.audio_manager.settings.audio_scheduled_whispers_enabled
+                else "Whispers: OFF"
+            )
         except Exception:
             pass
 
@@ -212,6 +233,8 @@ class AudioSettingsModal(ModalScreen[None]):
             self.action_toggle_mute()
         elif btn_id == "btn-toggle-keystrokes":
             self.action_toggle_keystrokes()
+        elif btn_id == "btn-toggle-whispers":
+            self.action_toggle_whispers()
         elif btn_id == "btn-test-sound":
             self.action_test_sound()
         elif btn_id == "btn-vol-down":
@@ -275,6 +298,12 @@ class AudioSettingsModal(ModalScreen[None]):
         """Toggle haunted keystrokes state immediately and persist preferences."""
         curr = self.audio_manager.settings.audio_haunted_keystrokes_enabled
         self.audio_manager.set_haunted_keystrokes(not curr, persist=True)
+        self._refresh_display()
+
+    def action_toggle_whispers(self) -> None:
+        """Toggle scheduled whispers state immediately and persist preferences."""
+        curr = self.audio_manager.settings.audio_scheduled_whispers_enabled
+        self.audio_manager.set_scheduled_whispers(not curr, persist=True)
         self._refresh_display()
 
     def action_dismiss_modal(self) -> None:
