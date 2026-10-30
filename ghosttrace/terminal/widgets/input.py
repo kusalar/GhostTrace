@@ -20,6 +20,28 @@ class CommandInput(Input):
     CommandInput:focus {
         border: heavy #00aa44;
     }
+    CommandInput > .input--placeholder {
+        color: #008833;
+    }
+    CommandInput > .input--suggestion {
+        color: #008833;
+    }
+    CommandInput > .input--cursor {
+        background: #00ff66;
+        color: #050807;
+        text-style: bold;
+    }
+    CommandInput:ansi {
+        background: ansi_default;
+        color: ansi_green;
+    }
+    CommandInput:ansi > .input--cursor {
+        text-style: reverse;
+    }
+    CommandInput:ansi > .input--placeholder, CommandInput:ansi > .input--suggestion {
+        color: ansi_green;
+        text-style: dim;
+    }
     """
 
     def __init__(self, history: SessionHistory, **kwargs: object) -> None:

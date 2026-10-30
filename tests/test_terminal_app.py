@@ -10,6 +10,7 @@ from ghosttrace.terminal.widgets.conversation import ConversationLog
 from ghosttrace.terminal.widgets.header import GhostTraceHeader
 from ghosttrace.terminal.widgets.input import CommandInput
 from ghosttrace.terminal.widgets.status_panel import StatusPanel
+from textual.events import Paste
 from textual.widgets import Static
 
 
@@ -140,3 +141,47 @@ def test_run_terminal_app_wrapper() -> None:
         exit_code_default = run_terminal_app(None)
         assert exit_code_default == 0
         mock_run_default.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_command_input_visibility_and_interactions() -> None:
+    """Verify input text is visibly rendered on screen, with paste, backspace, and scroll."""
+    app = GhostTraceApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        inp = app.query_one("#command-input", CommandInput)
+
+        # 1. Normal keyboard typing visibility on compositor
+        for char in "status":
+            await pilot.press(char)
+        await pilot.pause()
+
+        strips = app.screen._compositor.render_strips(app.screen.size)
+        screen_text = "\n".join("".join(c.text for c in s) for s in strips)
+        assert "status" in screen_text, "Typed text must be visibly rendered on screen"
+
+        # 2. Backspace
+        await pilot.press("backspace")
+        await pilot.pause()
+        assert inp.value == "statu"
+
+        # 3. Paste
+        inp.post_message(Paste("s --verbose"))
+        await pilot.pause()
+        assert inp.value == "status --verbose"
+        strips = app.screen._compositor.render_strips(app.screen.size)
+        screen_text = "\n".join("".join(c.text for c in s) for s in strips)
+        assert "status --verbose" in screen_text
+
+        # 4. Ctrl+A cursor navigation
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        assert inp.cursor_position == 0
+
+        # 5. Long input and horizontal scrolling
+        long_str = "cmd_" + "x" * 60 + "_end"
+        inp.value = long_str
+        inp.cursor_position = len(long_str)
+        await pilot.pause()
+        strips = app.screen._compositor.render_strips(app.screen.size)
+        screen_text = "\n".join("".join(c.text for c in s) for s in strips)
+        assert "_end" in screen_text, "Scrolled long input tail must be visibly rendered"

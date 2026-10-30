@@ -61,8 +61,7 @@ class GhostTraceApp(App[int]):
         layout: horizontal;
     }
     #input-container {
-        dock: bottom;
-        height: 3;
+        height: auto;
         background: #050807;
         layout: horizontal;
         padding: 0 1;
