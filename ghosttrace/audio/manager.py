@@ -6,7 +6,7 @@ import logging
 import threading
 from pathlib import Path
 
-from ghosttrace.audio.backend import AudioBackend, NullAudioBackend
+from ghosttrace.audio.backend import AudioBackend, MiniAudioBackend, NullAudioBackend
 from ghosttrace.audio.catalog import AudioCatalog
 from ghosttrace.audio.exceptions import (
     AudioInitializationError,
@@ -46,13 +46,17 @@ class AudioManager:
         """
         if not self.settings.audio_enabled:
             logger.debug("Audio subsystem is disabled in configuration. Using NullAudioBackend.")
-            null_backend = NullAudioBackend(volume=self._volume)
+            null_backend = NullAudioBackend(
+                volume=self._volume, ambient_volume=self._ambient_volume
+            )
             null_backend.initialize()
             return null_backend
 
         # Audio is explicitly enabled in settings
         target_backend = (
-            custom_backend if custom_backend is not None else NullAudioBackend(volume=self._volume)
+            custom_backend
+            if custom_backend is not None
+            else MiniAudioBackend(volume=self._volume, ambient_volume=self._ambient_volume)
         )
 
         try:
@@ -62,7 +66,9 @@ class AudioManager:
                     "Configured audio backend failed initialization. "
                     "Falling back to safe NullAudioBackend."
                 )
-                fallback = NullAudioBackend(volume=self._volume)
+                fallback = NullAudioBackend(
+                    volume=self._volume, ambient_volume=self._ambient_volume
+                )
                 fallback.initialize()
                 return fallback
             return target_backend
@@ -72,7 +78,7 @@ class AudioManager:
                 type(exc).__name__,
                 exc,
             )
-            fallback = NullAudioBackend(volume=self._volume)
+            fallback = NullAudioBackend(volume=self._volume, ambient_volume=self._ambient_volume)
             fallback.initialize()
             return fallback
 
@@ -120,6 +126,7 @@ class AudioManager:
                 asset_dir_exists=asset_dir_exists,
                 known_events_count=self.catalog.count(),
                 is_muted=self._is_muted,
+                ambient_playing=bool(backend_state.get("ambient_playing", False)),
                 active_voices_count=int(backend_state.get("active_voices", 0)),
             )
 
@@ -180,6 +187,49 @@ class AudioManager:
             effective_volume = max(0.0, min(1.0, self._volume * volume_scale))
             return self.backend.play(asset_path, volume=effective_volume, loop=loop)
 
+    def play_ambient(
+        self,
+        event_id: AudioEventId | str,
+        volume_scale: float = 1.0,
+    ) -> bool:
+        """Start streaming a continuous ambient horror loop.
+
+        Args:
+            event_id: Canonical event identifier for loopable ambient audio.
+            volume_scale: Relative volume scaling (0.0 to 1.0).
+
+        Returns:
+            True if ambient playback was started, False otherwise.
+        """
+        with self._lock:
+            if not self.settings.audio_enabled or self._is_muted or self._is_shutdown:
+                return False
+
+            if not (0.0 <= volume_scale <= 1.0):
+                raise InvalidVolumeError(
+                    f"Invalid volume_scale {volume_scale}. Must be between 0.0 and 1.0."
+                )
+
+            asset_path = self.resolve_asset_path(event_id)
+            if asset_path is None:
+                logger.debug("Asset file missing or unresolvable for ambient event: %s", event_id)
+                return False
+
+            return self.backend.play_ambient(asset_path, volume=volume_scale)
+
+    def stop_ambient(self) -> None:
+        """Stop the currently active ambient background loop."""
+        with self._lock:
+            self.backend.stop_ambient()
+
+    def stop_event(self, event_id: AudioEventId | str) -> None:
+        """Stop all voices playing a specific event."""
+        with self._lock:
+            sound = self.catalog.get_sound(event_id)
+            if sound is not None and self.settings.audio_asset_dir is not None:
+                target_path = (self.settings.audio_asset_dir / sound.relative_path).resolve()
+                self.backend.stop_event(target_path)
+
     def stop_all(self) -> None:
         """Stop all currently playing sound effects and ambient tracks."""
         with self._lock:
@@ -215,14 +265,17 @@ class AudioManager:
             )
         with self._lock:
             self._ambient_volume = volume
+            self.backend.set_ambient_volume(volume)
 
     def mute(self) -> None:
         """Silence all audio output without changing volume configurations."""
         with self._lock:
             self._is_muted = True
+            self.backend.set_muted(True)
             self.backend.stop_all()
 
     def unmute(self) -> None:
         """Unmute audio output."""
         with self._lock:
             self._is_muted = False
+            self.backend.set_muted(False)

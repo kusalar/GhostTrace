@@ -98,6 +98,9 @@ class AudioStatus(BaseModel):
     asset_dir_exists: bool = Field(description="Whether the audio asset directory exists on disk.")
     known_events_count: int = Field(description="Total registered sound effects in the catalog.")
     is_muted: bool = Field(default=False, description="Whether audio playback is currently muted.")
+    ambient_playing: bool = Field(
+        default=False, description="Whether an ambient horror loop is currently streaming."
+    )
     active_voices_count: int = Field(
         default=0, description="Number of sound effects currently playing."
     )

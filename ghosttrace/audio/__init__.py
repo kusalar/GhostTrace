@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ghosttrace.audio.backend import AudioBackend, NullAudioBackend
+from ghosttrace.audio.backend import AudioBackend, MiniAudioBackend, NullAudioBackend
 from ghosttrace.audio.catalog import AudioCatalog
 from ghosttrace.audio.exceptions import (
     AssetNotFoundError,
@@ -33,6 +33,7 @@ __all__ = [
     "AudioPlaybackRequest",
     "AudioStatus",
     "InvalidVolumeError",
+    "MiniAudioBackend",
     "NullAudioBackend",
     "SoundEffect",
 ]
