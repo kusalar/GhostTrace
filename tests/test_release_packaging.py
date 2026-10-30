@@ -24,10 +24,10 @@ from ghosttrace.system.engine import SystemEngine
 
 
 def test_version_metadata_consistency() -> None:
-    """Verify consistent 1.0.0 version string across config, package, and settings."""
+    """Verify consistent 1.1.0 version string across config, package, and settings."""
     settings = Settings()
-    assert settings.app_version == "1.0.0"
-    assert __version__ == "1.0.0"
+    assert settings.app_version == "1.1.0"
+    assert __version__ == "1.1.0"
 
 
 def test_default_experience_mode_is_normal() -> None:
@@ -208,7 +208,7 @@ def test_packaged_executable_cli_commands() -> None:
         [str(exe_path), "--version"], capture_output=True, text=True, check=False
     )
     assert v_res.returncode == 0
-    assert "GhostTrace v1.0.0" in v_res.stdout
+    assert "GhostTrace v1.1.0" in v_res.stdout
 
     # 2. Help command
     h_res = subprocess.run([str(exe_path), "--help"], capture_output=True, text=True, check=False)

@@ -62,13 +62,15 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 | **Persistent Memory & Projects** | **Completed** | SQLite persistence (WAL mode), FTS5 full-text search, user-controlled memory CRUD, read-only project indexing |
 | **System Awareness & Diagnostics** | **Completed** | Win32 & stdlib resource telemetry, health inspection across 12 subsystems, diagnostic reporting |
 | **Haunted Experience** | **Completed** | Step 09: Atmospheric manifestations, ghost reactions, 4 experience modes (normal, ambient, haunted, focus), 9 event categories |
-| **Testing Suite** | **Completed** | Deterministic unit, async TUI, and integration tests (459 tests passed, 460 including real-model end-to-end smoke test, 88.92% branch coverage) |
-| **Packaging & Hardening** | **Completed** | Step 10: Standalone Windows executable (`GhostTrace.exe`), PyInstaller distribution bundle, hardened release artifacts |
+| **Horror Audio Subsystem** | **Completed** | v1.1.0: 20 original procedural sound effects, 8-voice polyphonic mixer, ambient streaming, TUI modal & CLI controls, Focus mode suppression, disabled by default |
+| **Testing Suite** | **Completed** | Deterministic unit, async TUI, and integration tests (565 tests passed, 566 including real-model end-to-end smoke test) |
+| **Packaging & Hardening** | **Completed** | Standalone Windows executable (`GhostTrace.exe`), PyInstaller onedir distribution bundle, hardened v1.1.0 release artifacts |
 
 ---
 
-## 5. 10-Step Development Roadmap
+## 5. Development Roadmap
 
+### Version 1.0.0 Core Platform (Complete)
 - [x] **Step 01: Foundation, Environment & Configuration**
 - [x] **Step 02: Interactive Terminal Interface & CLI**
 - [x] **Step 03: Local AI Integration**
@@ -79,6 +81,14 @@ GhostTrace is architected from the ground up for low-overhead, offline CPU infer
 - [x] **Step 08: System Awareness & Diagnostics**
 - [x] **Step 09: Haunted Experience & Interactive Events**
 - [x] **Step 10: Testing, Optimization, Packaging & Release** *(Production Release v1.0.0)*
+
+### Version 1.1.0 Ghost Audio Engine (Complete)
+- [x] **Step 01: Audio Subsystem Foundation** (`AudioManager`, `AudioBackend`, NullAudioBackend fallback)
+- [x] **Step 02: Original Horror Sound Asset Library** (20 procedural DSP WAV sound effects, manifest)
+- [x] **Step 03: Asynchronous Playback Engine** (Polyphonic software mixer, ambient streaming, PCM caching)
+- [x] **Step 04: Application Event Audio Integration** (`AudioEventAdapter`, lifecycle, notifications, Guardian, developer events)
+- [x] **Step 05: Audio Controls & Experience Mode Integration** (TUI `AudioSettingsModal`, CLI commands, volume, mute, persistence, Focus mode policy)
+- [x] **Step 06: Final QA, Performance Validation & Production Packaging** (PyInstaller v1.1.0 release bundle, acceptance tests)
 
 ---
 
@@ -226,13 +236,39 @@ ghosttrace haunt preview idle
 ghosttrace haunt preview special
 ```
 
-### 7.6 Version Information
+### 7.6 Horror Sound Subsystem CLI Commands (v1.1.0)
+Inspect and control the audio subsystem non-interactively without launching the TUI:
 ```powershell
-ghosttrace --version
-# Output: GhostTrace v0.9.0
+# Display complete audio status, volumes, and device availability
+ghosttrace audio status
+
+# Enable audio subsystem and initialize playback hardware
+ghosttrace audio enable
+
+# Adjust master output volume (0.0 to 1.0) and persist preference
+ghosttrace audio volume 0.75
+
+# Adjust ambient horror loop volume independently (0.0 to 1.0)
+ghosttrace audio ambient-volume 0.25
+
+# Mute and unmute audio output
+ghosttrace audio mute
+ghosttrace audio unmute
+
+# Play short test sound effect (notification ping)
+ghosttrace audio test
+
+# Disable audio subsystem and silence all sound
+ghosttrace audio disable
 ```
 
-### 7.7 Help Information
+### 7.7 Version Information
+```powershell
+ghosttrace --version
+# Output: GhostTrace v1.1.0
+```
+
+### 7.8 Help Information
 ```powershell
 ghosttrace --help
 ```
@@ -503,6 +539,19 @@ Every command execution requires explicit approval:
 - `haunt preview [category]` — Harmlessly previews an atmospheric event from a specific category without recording to history.
 - `haunt enable` — Re-enables the haunted experience subsystem.
 - `haunt disable` — Disables the haunted experience subsystem.
+
+#### Horror Sound Subsystem Command Family (`audio` / `sound` / `sfx`) (v1.1.0)
+
+- `audio` (or `audio settings`) — Opens the interactive `AudioSettingsModal` with live ASCII volume meters, toggles, and controls.
+- `audio status` — Displays detailed audio diagnostics, device availability, volume levels, and mute status.
+- `audio enable` — Enables audio subsystem and initializes output hardware.
+- `audio disable` — Disables audio subsystem and silences all sound playback.
+- `audio volume <0.0-1.0>` — Adjusts master volume level in real-time and persists preference.
+- `audio ambient-volume <0.0-1.0>` — Adjusts ambient loop volume independently and persists preference.
+- `audio mute` — Mutes audio output without resetting configured volume levels.
+- `audio unmute` — Restores audio output at prior configured volumes.
+- `audio test` — Dispatches a test sound effect (`notification_ping`) to verify physical playback.
+- `audio help` — Complete reference for audio commands and experience mode policies.
 
 ### Keyboard Shortcuts
 

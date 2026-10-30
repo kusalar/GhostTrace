@@ -140,10 +140,10 @@ def test_health_report_and_snapshot_schemas() -> None:
     assert snap.platform.os_name == "Windows"
 
     diag = DiagnosticReport(
-        app_version="1.0.0",
+        app_version="1.1.0",
         python_version="3.11.9",
         snapshot=snap,
         warnings=["Test warning"],
     )
-    assert diag.app_version == "1.0.0"
+    assert diag.app_version == "1.1.0"
     assert len(diag.warnings) == 1

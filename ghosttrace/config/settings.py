@@ -1,6 +1,7 @@
 """Centralized configuration management for GhostTrace."""
 
 import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -25,7 +26,7 @@ class Settings(BaseSettings):
 
     # Application Metadata
     app_name: str = "GhostTrace"
-    app_version: str = "1.0.0"
+    app_version: str = "1.1.0"
     app_description: str = "Offline-first AI-powered haunted terminal companion."
 
     # Environment & Execution Mode
@@ -698,11 +699,19 @@ class Settings(BaseSettings):
         )
         object.__setattr__(self, "log_dir", resolved_log_dir)
 
-        resolved_audio_dir = (
-            Path(self.audio_asset_dir).resolve()
-            if self.audio_asset_dir is not None
-            else (Path("assets") / "audio").resolve()
-        )
+        if self.audio_asset_dir is not None:
+            resolved_audio_dir = Path(self.audio_asset_dir).resolve()
+        else:
+            meipass = getattr(sys, "_MEIPASS", None)
+            exe_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else None
+            if meipass and (Path(meipass) / "assets" / "audio").exists():
+                resolved_audio_dir = (Path(meipass) / "assets" / "audio").resolve()
+            elif exe_dir and (exe_dir / "assets" / "audio").exists():
+                resolved_audio_dir = (exe_dir / "assets" / "audio").resolve()
+            elif exe_dir and (exe_dir / "_internal" / "assets" / "audio").exists():
+                resolved_audio_dir = (exe_dir / "_internal" / "assets" / "audio").resolve()
+            else:
+                resolved_audio_dir = (Path("assets") / "audio").resolve()
         object.__setattr__(self, "audio_asset_dir", resolved_audio_dir)
 
         # In debug mode, elevate log level if set to default INFO
