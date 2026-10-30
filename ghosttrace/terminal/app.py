@@ -7,13 +7,16 @@ import time
 import uuid
 from typing import ClassVar
 
+from rich.console import RenderableType
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
+from textual.notifications import SeverityLevel
 from textual.widgets import Footer, Input, Static
 
 from ghosttrace.ai.engine import AIEngine
+from ghosttrace.audio.adapter import AudioEventAdapter
 from ghosttrace.audio.manager import AudioManager
 from ghosttrace.config.settings import Settings, get_settings
 from ghosttrace.developer.engine import DeveloperEngine
@@ -170,6 +173,8 @@ class GhostTraceApp(App[int]):
         else:
             self.audio_manager = AudioManager(self.settings)
 
+        self.audio_adapter = AudioEventAdapter(self.audio_manager)
+        self._last_observed_mood: str | None = None
         self.last_user_activity = time.time()
 
         self.ai_engine = ai_engine or AIEngine(
@@ -191,6 +196,7 @@ class GhostTraceApp(App[int]):
             system_engine=self.system_engine,
             haunt_engine=self.haunt_engine,
             audio_manager=self.audio_manager,
+            audio_adapter=self.audio_adapter,
         )
         self.is_generating = False
         self.is_executing_command = False
@@ -227,8 +233,12 @@ class GhostTraceApp(App[int]):
         self.set_interval(15.0, self._check_idle_whisper)
         logger.info("GhostTrace terminal UI mounted successfully.")
 
+        # Dispatch application startup sound effect
+        self.audio_adapter.on_startup()
+
     def on_unmount(self) -> None:
-        """Release local AI resources cleanly upon shutdown."""
+        """Release local AI and audio resources cleanly upon shutdown."""
+        self.audio_adapter.on_shutdown()
         self.ai_engine.unload_model()
         if self.memory_engine is not None:
             self.memory_engine.close()
@@ -257,6 +267,11 @@ class GhostTraceApp(App[int]):
 
             # Update Ghost persona and mood telemetry
             if self.ghost_engine is not None and isinstance(self.ghost_engine, GhostEngine):
+                curr_mood = self.ghost_engine.current_mood.value
+                if self._last_observed_mood is not None and self._last_observed_mood != curr_mood:
+                    self.audio_adapter.on_mood_shift(self._last_observed_mood, curr_mood)
+                self._last_observed_mood = curr_mood
+
                 header.update_ghost_status(
                     profile_name=self.ghost_engine.active_profile.name,
                     mood_name=self.ghost_engine.current_mood.value,
@@ -348,39 +363,49 @@ class GhostTraceApp(App[int]):
                 if disc_res.fired and disc_res.rendered_text:
                     conv_log.add_haunt_event(disc_res.rendered_text)
 
-            if result.command_name == "guard_run" and result.success:
-                latest_req = self.guardian_engine.approval_mgr.get_latest_pending()
-                if latest_req is not None:
+            if result.command_name == "guard_run":
+                if result.success:
+                    latest_req = self.guardian_engine.approval_mgr.get_latest_pending()
+                    if latest_req is not None:
+                        self.audio_adapter.on_guardian_intercept(
+                            latest_req.analysis.original_command
+                        )
 
-                    def _on_approval_decision(approved: bool) -> None:
-                        if approved:
-                            self._dispatch_approved_execution(
-                                latest_req.token,
-                                latest_req.analysis.original_command,
-                            )
-                        else:
-                            self.guardian_engine.cancel_approval(latest_req.token)
-                            output = (
-                                f"Execution of '{latest_req.analysis.original_command}' "
-                                "was cancelled."
-                            )
-                            conv_log.add_exchange(
-                                f"guard cancel {latest_req.token}",
-                                CommandResult(
-                                    success=True,
-                                    output=output,
-                                ),
-                            )
-                            self._refresh_subsystem_status()
+                        def _on_approval_decision(approved: bool) -> None:
+                            if approved:
+                                self.audio_adapter.on_guardian_approved(latest_req.token)
+                                self._dispatch_approved_execution(
+                                    latest_req.token,
+                                    latest_req.analysis.original_command,
+                                )
+                            else:
+                                self.audio_adapter.on_guardian_blocked(
+                                    latest_req.token, "Cancelled by user"
+                                )
+                                self.guardian_engine.cancel_approval(latest_req.token)
+                                output = (
+                                    f"Execution of '{latest_req.analysis.original_command}' "
+                                    "was cancelled."
+                                )
+                                conv_log.add_exchange(
+                                    f"guard cancel {latest_req.token}",
+                                    CommandResult(
+                                        success=True,
+                                        output=output,
+                                    ),
+                                )
+                                self._refresh_subsystem_status()
 
-                    self.push_screen(
-                        CommandApprovalModal(
-                            request=latest_req,
-                            timeout_seconds=self.guardian_engine.policy.timeout_seconds,
-                            max_output_chars=self.guardian_engine.policy.max_output_chars,
-                        ),
-                        _on_approval_decision,
-                    )
+                        self.push_screen(
+                            CommandApprovalModal(
+                                request=latest_req,
+                                timeout_seconds=self.guardian_engine.policy.timeout_seconds,
+                                max_output_chars=self.guardian_engine.policy.max_output_chars,
+                            ),
+                            _on_approval_decision,
+                        )
+                else:
+                    self.audio_adapter.on_guardian_blocked(reason="Execution request rejected")
 
             if result.should_exit:
                 self.exit(0)
@@ -471,6 +496,14 @@ class GhostTraceApp(App[int]):
                 except Exception as exc:
                     logger.debug("Failed to persist assistant message: %s", exc)
 
+            is_coding = (
+                self.dev_engine is not None
+                and self.dev_engine.is_enabled
+                and self.dev_engine.is_developer_query(query)
+            )
+            if is_coding:
+                self.audio_adapter.on_coding_success("ai_developer_query")
+
             coding_res = self.haunt_engine.process_trigger(
                 TriggerContext(
                     trigger_type=TriggerType.CODING_SUCCESS,
@@ -481,6 +514,7 @@ class GhostTraceApp(App[int]):
                 self.call_from_thread(conv_log.add_haunt_event, coding_res.rendered_text)
         except Exception as exc:
             logger.exception("AI query generation failed: %s", exc)
+            self.audio_adapter.on_app_error(exc)
             self.call_from_thread(
                 conv_log.update_ai_response, widget_id, f"Inference error: {exc}", False
             )
@@ -517,10 +551,23 @@ class GhostTraceApp(App[int]):
         conv_log = self.query_one("#conversation-log", ConversationLog)
         conv_log.clear_log()
 
+    def notify(
+        self,
+        message: RenderableType | str,
+        *,
+        title: RenderableType | str = "",
+        severity: SeverityLevel = "information",
+        timeout: float | None = None,
+    ) -> None:
+        """Post notification and dispatch corresponding audio sound cue."""
+        super().notify(message, title=title, severity=severity, timeout=timeout)
+        if hasattr(self, "audio_adapter") and self.audio_adapter is not None:
+            self.audio_adapter.on_notification(message=str(message), severity=str(severity))
+
     def action_quit_app(self) -> None:
         """Action handler for clean shutdown (Ctrl+C)."""
         logger.info("User requested application shutdown via shortcut.")
-        self.audio_manager.shutdown()
+        self.audio_adapter.on_shutdown()
         self.exit(0)
 
     def action_cancel_input(self) -> None:

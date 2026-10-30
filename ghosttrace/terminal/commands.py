@@ -557,6 +557,8 @@ def handle_dev(args: list[str], context: CommandContext) -> CommandResult:
                 ),
             )
         report = dev_engine.format_static_analysis_report(content_arg)
+        if context.audio_adapter is not None:
+            context.audio_adapter.on_coding_success("analyze")
         return CommandResult(success=True, output=report)
 
     # Workflow commands that dispatch to AI model:
@@ -615,6 +617,8 @@ def handle_dev(args: list[str], context: CommandContext) -> CommandResult:
 
             headline = format_task_headline(target_intent, ctx.detected_language)
             output_text = f"[{headline}]\n\n{res.text}"
+            if context.audio_adapter is not None:
+                context.audio_adapter.on_coding_success(subcommand)
             return CommandResult(success=True, output=output_text)
         except Exception as exc:
             return CommandResult(
@@ -812,6 +816,11 @@ def handle_guard(args: list[str], context: CommandContext) -> CommandResult:
 
         result = guard_engine.execute_approved(token=token, command=cmd_text)
         formatted = format_execution_result(result)
+        if context.audio_adapter is not None:
+            if result.status == ExecutionStatus.SUCCESS:
+                context.audio_adapter.on_guardian_approved(token)
+            else:
+                context.audio_adapter.on_guardian_blocked(token, "Execution failed or rejected")
         return CommandResult(
             success=(result.status == ExecutionStatus.SUCCESS),
             output=formatted,
@@ -820,6 +829,8 @@ def handle_guard(args: list[str], context: CommandContext) -> CommandResult:
     if subcommand == "cancel":
         token = content_args[0].strip() if content_args else None
         success, msg = guard_engine.cancel_approval(token)
+        if context.audio_adapter is not None and success:
+            context.audio_adapter.on_guardian_blocked(token or "", "Cancelled by user")
         return CommandResult(success=success, output=msg)
 
     return CommandResult(

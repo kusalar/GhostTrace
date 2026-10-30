@@ -15,6 +15,7 @@ from ghosttrace.terminal.history import SessionHistory
 
 if TYPE_CHECKING:
     from ghosttrace.ai.engine import AIEngine
+    from ghosttrace.audio.adapter import AudioEventAdapter
     from ghosttrace.audio.manager import AudioManager
     from ghosttrace.developer.engine import DeveloperEngine
     from ghosttrace.ghost.engine import GhostEngine
@@ -40,6 +41,7 @@ class CommandContext:
     system_engine: SystemEngine | None = None
     haunt_engine: HauntEngine | None = None
     audio_manager: AudioManager | None = None
+    audio_adapter: AudioEventAdapter | None = None
 
 
 @dataclass

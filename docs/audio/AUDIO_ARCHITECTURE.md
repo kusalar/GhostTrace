@@ -1,8 +1,8 @@
 # GhostTrace Audio Subsystem Architecture
 
 > **Release:** GhostTrace v1.1.0  
-> **Milestone:** Step 03 / 10 — Asynchronous Audio Playback Engine  
-> **Status:** Playback Engine Implemented & Verified (Event Triggers Deferred to Step 04)
+> **Milestone:** Step 04 / 10 — Application Event Audio Integration  
+> **Status:** Event Integration Implemented & Verified (Audio Controls Deferred to Step 05)
 
 ---
 
@@ -159,8 +159,47 @@ Physical playback was verified on host hardware (`Speaker (Realtek(R) Audio)`):
 
 ---
 
-## 8. Playback Integration Status
+## 8. Application Event Audio Integration (`AudioEventAdapter`)
 
-> [!IMPORTANT]
-> **Audio event triggers are NOT implemented in Step 03.**  
-> While the asynchronous playback engine and mixer are fully operational and verified, audio has not been wired into GhostTrace application events (startup, shutdown, Guardian approvals, haunt triggers, or TUI commands). Event-to-sound triggers are strictly deferred to **Step 04**. All v1.0.0 functionality and TUI layouts remain 100% preserved.
+Step 04 connects GhostTrace application events to original dark horror sound effects via a decoupled, centralized adapter architecture ([`ghosttrace.audio.adapter.AudioEventAdapter`](file:///d:/GhostTrace/ghosttrace/audio/adapter.py)).
+
+### Event-to-Sound Mapping Reference
+
+| Application Event Category | Trigger Hook | Canonical Sound Effect | File Asset | Behavior & Policies |
+|---|---|---|---|---|
+| **Lifecycle** | `on_startup()` | `startup` | `sfx/startup.wav` | Dispatches once after successful TUI mount. |
+| **Lifecycle** | `on_shutdown()` | `shutdown` | `sfx/shutdown.wav` | Dispatches power-down stinger before backend release. Idempotent. |
+| **Notification** | `on_notification(important=True)` | `notification_alert` | `sfx/notification_alert.wav` | Critical alerts, warnings, and error notifications. |
+| **Notification** | `on_notification(important=False)`| `notification_ping` | `sfx/notification_ping.wav` | Standard information notifications. 0.3s cooldown. |
+| **Notification** | `on_notification(severity="status")` | *None (Suppressed)* | *None* | Minor status/debug updates produce zero sound. |
+| **Guardian Security** | `on_guardian_intercept()` | `guardian_intercept` | `haunt/guardian_intercept.wav` | Dispatched when command is intercepted for approval. |
+| **Guardian Security** | `on_guardian_approved()` | `guardian_approved` | `haunt/guardian_approved.wav` | Dispatched ONLY after user confirms execution approval. |
+| **Guardian Security** | `on_guardian_blocked()` | `guardian_blocked` | `haunt/guardian_blocked.wav` | Dispatched when command is rejected or cancelled. |
+| **Developer Workflow**| `on_coding_success()` | `coding_success` | `haunt/coding_success.wav` | Code generation, code review, refactoring, or AST analysis. |
+| **Developer Workflow**| `on_app_error()` | `app_error` | `haunt/app_error.wav` | Inference/app exception stinger; deduplicated vs alert notifications. |
+| **Ghost Haunt** | `on_mood_shift()` | `mood_shift` | `haunt/mood_shift.wav` | Real persona transitions (`old_mood != new_mood`). 2.0s cooldown. |
+| **Ghost Haunt** | `on_glitch()` | `glitch_digital` | `glitch/digital_glitch.wav` | Terminal glitch, static, or memory corruption manifestations. |
+
+### Deduplication & Debounce Strategy
+- **Notification Deduplication:** Repeated identical messages within 1.0s are suppressed.
+- **Error Stinger Deduplication:** If `notification_alert` fired for an error, `on_app_error` within 1.0s is suppressed to prevent jarring double-stingers.
+- **Guardian Priority:** Guardian security decisions are never suppressed by normal cooldowns, ensuring 100% audible safety transparency.
+- **Thread Safety:** State transitions are protected by an internal `threading.Lock()` across worker threads and the main Textual event loop.
+
+---
+
+## 9. Physical Hardware Verification (Step 04)
+
+Hardware playback was verified across all event pathways on host hardware (`Speaker (Realtek(R) Audio)`):
+```powershell
+.venv\Scripts\python.exe tools/smoke_test_event_audio.py
+```
+**Physical Test Output:**
+- Audio Disabled Mode: `backend=null`, `device_init=False` (100% silent, 0ms overhead).
+- Audio Hardware Initialized: `Speaker (Realtek(R) Audio)`.
+- Dispatched `startup` stinger (sub-bass swell & chime).
+- Dispatched `notification_alert` (resonant bell) and `notification_ping` (hollow glass chime).
+- Dispatched Guardian sequence: `guardian_intercept` (clamp) $\to$ `guardian_approved` (latch) $\to$ `guardian_blocked` (barricade clang).
+- Dispatched `coding_success` (ethereal ascending chord).
+- Dispatched `mood_shift` (sub-bass pitch bend).
+- Dispatched `shutdown` (resonant power-down fade) followed by clean device teardown.

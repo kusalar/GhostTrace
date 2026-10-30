@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ghosttrace.audio.adapter import AudioEventAdapter, NotificationSeverity
 from ghosttrace.audio.backend import AudioBackend, MiniAudioBackend, NullAudioBackend
 from ghosttrace.audio.catalog import AudioCatalog
 from ghosttrace.audio.exceptions import (
@@ -27,6 +28,7 @@ __all__ = [
     "AudioCategory",
     "AudioDisabledError",
     "AudioError",
+    "AudioEventAdapter",
     "AudioEventId",
     "AudioInitializationError",
     "AudioManager",
@@ -34,6 +36,7 @@ __all__ = [
     "AudioStatus",
     "InvalidVolumeError",
     "MiniAudioBackend",
+    "NotificationSeverity",
     "NullAudioBackend",
     "SoundEffect",
 ]
