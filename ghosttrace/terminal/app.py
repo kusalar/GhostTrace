@@ -33,6 +33,7 @@ from ghosttrace.terminal.command_registry import CommandContext, CommandRegistry
 from ghosttrace.terminal.commands import create_default_registry
 from ghosttrace.terminal.history import SessionHistory
 from ghosttrace.terminal.widgets.approval_modal import CommandApprovalModal
+from ghosttrace.terminal.widgets.audio_modal import AudioSettingsModal
 from ghosttrace.terminal.widgets.conversation import ConversationLog
 from ghosttrace.terminal.widgets.header import GhostTraceHeader
 from ghosttrace.terminal.widgets.input import CommandInput
@@ -175,6 +176,7 @@ class GhostTraceApp(App[int]):
 
         self.audio_adapter = AudioEventAdapter(self.audio_manager)
         self._last_observed_mood: str | None = None
+        self._last_observed_haunt_mode: str | None = None
         self.last_user_activity = time.time()
 
         self.ai_engine = ai_engine or AIEngine(
@@ -317,6 +319,14 @@ class GhostTraceApp(App[int]):
 
             # Update Haunted Experience telemetry
             if self.haunt_engine is not None and isinstance(self.haunt_engine, HauntEngine):
+                curr_haunt_mode = self.haunt_engine.mode.value
+                if (
+                    self._last_observed_haunt_mode is not None
+                    and self._last_observed_haunt_mode != curr_haunt_mode
+                ):
+                    self.audio_adapter.set_experience_mode(curr_haunt_mode)
+                self._last_observed_haunt_mode = curr_haunt_mode
+
                 status_panel.update_haunt_status(
                     is_active=self.haunt_engine.is_enabled,
                     mode=self.haunt_engine.mode.value,
@@ -406,6 +416,20 @@ class GhostTraceApp(App[int]):
                         )
                 else:
                     self.audio_adapter.on_guardian_blocked(reason="Execution request rejected")
+
+            if result.command_name == "audio_settings":
+                exp_mode = (
+                    self.haunt_engine.mode.value
+                    if self.haunt_engine is not None and isinstance(self.haunt_engine, HauntEngine)
+                    else "normal"
+                )
+                self.push_screen(
+                    AudioSettingsModal(
+                        audio_manager=self.audio_manager,
+                        audio_adapter=self.audio_adapter,
+                        experience_mode=exp_mode,
+                    )
+                )
 
             if result.should_exit:
                 self.exit(0)

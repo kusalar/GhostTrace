@@ -1,8 +1,8 @@
 # GhostTrace Audio Subsystem Architecture
 
 > **Release:** GhostTrace v1.1.0  
-> **Milestone:** Step 04 / 10 — Application Event Audio Integration  
-> **Status:** Event Integration Implemented & Verified (Audio Controls Deferred to Step 05)
+> **Milestone:** Step 05 / 10 — Audio Controls & Experience Mode Integration  
+> **Status:** Controls, CLI, TUI Modal, Persistence, and Experience Modes Verified
 
 ---
 
@@ -203,3 +203,110 @@ Hardware playback was verified across all event pathways on host hardware (`Spea
 - Dispatched `coding_success` (ethereal ascending chord).
 - Dispatched `mood_shift` (sub-bass pitch bend).
 - Dispatched `shutdown` (resonant power-down fade) followed by clean device teardown.
+
+---
+
+## 10. Persistent Audio Preferences & Precedence Architecture (Step 05)
+
+Step 05 introduces persistent user audio preferences via [`ghosttrace.audio.preferences`](file:///d:/GhostTrace/ghosttrace/audio/preferences.py). User configuration changes made through the interactive TUI or CLI survive application restarts while strictly respecting deterministic configuration precedence.
+
+### Preferences Storage
+- **File Location:** `<app_data_dir>/audio_preferences.json` (defaults to `%LOCALAPPDATA%\GhostTrace\audio_preferences.json` on Windows).
+- **Format:** Human-readable JSON validated via Pydantic model `AudioPreferences`.
+- **Fault-Tolerance:** Missing, unreadable, or corrupted preference files cleanly fall back to default settings without crashing or interrupting the terminal.
+
+```json
+{
+  "enabled": false,
+  "volume": 0.5,
+  "ambient_volume": 0.2,
+  "muted": false
+}
+```
+
+### Deterministic Precedence Hierarchy
+Precedence order is strictly enforced by `apply_preferences_with_precedence()`:
+1. **Explicit in-code arguments or CLI flags:** Highest priority.
+2. **Explicit environment variables (`GHOSTTRACE_AUDIO_*`):**
+   - **Critical Rule:** If `GHOSTTRACE_AUDIO_ENABLED=false` is explicitly set in the environment, persisted preferences can never override it to `true`.
+3. **Persisted preferences (`audio_preferences.json`):** Applied on initialization when no environment override exists.
+4. **Built-in default settings:** `audio_enabled=false`, `volume=0.50`, `ambient_volume=0.20`, `muted=false`.
+
+---
+
+## 11. Command-Line Interface (`ghosttrace audio`)
+
+Comprehensive CLI control is exposed via the Typer CLI sub-app `ghosttrace audio`:
+
+| Command | Usage | Description |
+|---|---|---|
+| `status` | `ghosttrace audio [status]` | Displays complete audio diagnostics (state, backend type, device availability, volume levels, mute state, active voices, ambient loop status, experience mode). |
+| `enable` | `ghosttrace audio enable` | Enables audio subsystem, initializes hardware device, and persists `enabled=true`. |
+| `disable` | `ghosttrace audio disable` | Silences all playback immediately, stops ambient loops, switches to `NullAudioBackend`, and persists `enabled=false`. |
+| `volume` | `ghosttrace audio volume <0.0-1.0>` | Adjusts master volume level in real-time ($0.0$ to $1.0$) and persists preference. |
+| `ambient-volume` | `ghosttrace audio ambient-volume <0.0-1.0>` | Adjusts ambient loop volume independently ($0.0$ to $1.0$) and persists preference. |
+| `mute` | `ghosttrace audio mute` | Mutes all audio output without wiping out or resetting configured volume preferences. |
+| `unmute` | `ghosttrace audio unmute` | Restores audio output at previously configured master and ambient volume levels. |
+| `test` | `ghosttrace audio test` | Dispatches a short verification sound effect (`notification_ping`) to test physical output. |
+
+All CLI commands cleanly release hardware device handles on exit, preventing background process hangs.
+
+---
+
+## 12. Interactive Terminal UI Controls & Modal (`AudioSettingsModal`)
+
+Interactive audio control is integrated directly into the Textual TUI via [`AudioSettingsModal`](file:///d:/GhostTrace/ghosttrace/terminal/widgets/audio_modal.py):
+
+- **Activation:**
+  - Command: `audio settings`, `audio ui`, or `audio` with no arguments.
+  - TUI Subcommands: `audio status`, `audio enable`, `audio disable`, `audio volume <val>`, `audio ambient-volume <val>`, `audio mute`, `audio unmute`, `audio test`.
+  - Aliases: `sound`, `sfx`.
+- **Visual Design:** Phosphor green aesthetic matching GhostTrace terminal theme (`#00ff66` accents, `#0d1117` backdrop, `#161b22` panels).
+- **Interactive Capabilities:**
+  - Real-time diagnostic telemetry display and visual ASCII meter bars (`[########........] 50%`).
+  - Single-key and button toggles for Enable/Disable, Mute/Unmute, and Test Sound.
+  - Quick-preset master volume adjustments: `+10%`, `-10%`, `50%`, `100%`.
+  - Quick-preset ambient volume adjustments: `+5%`, `-5%`, `20%`, `50%`.
+  - Dismissible with `Esc` or `Close` button.
+
+---
+
+## 13. Experience Mode Audio Policy Integration
+
+GhostTrace experience modes (`normal`, `ambient`, `haunted`, `focus`) are synchronized with the audio subsystem via `AudioEventAdapter.set_experience_mode()`:
+
+```text
+┌─────────────────┬───────────────────────────────┬──────────────────────────────────────────┐
+│ Experience Mode │ Ambient Sound Loop            │ Event Sound Effects Policy               │
+├─────────────────┼───────────────────────────────┼──────────────────────────────────────────┤
+│ normal          │ INACTIVE (silenced)           │ Standard event sounds audible.           │
+│ ambient         │ ACTIVE (ambient_dark_hum loop)│ Standard event sounds audible.           │
+│ haunted         │ ACTIVE (ambient_cold_wind loop│ All horror event sounds & whispers active│
+│ focus           │ INACTIVE (silenced)           │ NON-ESSENTIAL SOUNDS SUPPRESSED:         │
+│                 │                               │ - Non-important notifications silenced   │
+│                 │                               │ - Coding success stingers silenced       │
+│                 │                               │ - Ghost mood shifts silenced             │
+│                 │                               │ - Digital glitch stingers silenced       │
+│                 │                               │ CRITICAL EVENTS REMAIN AUDIBLE:          │
+│                 │                               │ - Command Guardian intercept & approvals │
+│                 │                               │ - Critical application error stingers    │
+└─────────────────┴───────────────────────────────┴──────────────────────────────────────────┘
+```
+
+- When switching to `focus`, any active ambient loop stops immediately.
+- When switching between `ambient` and `haunted`, the loop smoothly transitions from dark hum to eerie cold wind.
+- Guardian safety operations and fatal errors bypass Focus mode filtering to guarantee operational safety awareness at all times.
+
+---
+
+## 14. Startup Latency Analysis & Lock Optimization
+
+During Step 04 hardware validation, a cold-start delay of $\approx 886.6\text{ ms}$ was observed when initializing the audio subsystem. Component profiling revealed:
+
+### Root Cause Breakdown
+1. **OS/Driver Enumeration:** COM `IMMDeviceEnumerator` (`miniaudio.Devices().get_playbacks()`) requires $\approx 112\text{ ms}$.
+2. **WASAPI Device Initialization:** `miniaudio.PlaybackDevice()` allocation and stream negotiation on Windows Realtek HD audio drivers requires $\approx 445\text{ ms}$.
+3. **Mixer Lock Contention (Fixed in Step 05):** In initial implementation, `MiniAudioBackend._mixer_callback_generator` yielded silence buffers while holding `self._lock`. This caused caller threads trying to acquire `_lock` during initial device pre-roll to block for hundreds of milliseconds.
+   - **Optimization:** Moved buffer `yield` outside the critical section in `_mixer_callback_generator()`. Calling threads now acquire the backend lock in $< 0.01\text{ ms}$ with zero lock contention.
+4. **Sample Decoding:** Procedural WAV decoding and array conversion requires only $2.6\text{ ms}$; once decoded, in-memory cache lookup operates in $0.007\text{ ms}$.
+5. **Disabled Default Protection:** With `audio_enabled=false` (the default), `NullAudioBackend` initializes in $< 0.05\text{ ms}$, ensuring zero impact on GhostTrace cold-boot time.

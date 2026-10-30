@@ -457,47 +457,48 @@ class MiniAudioBackend(AudioBackend):
 
             num_samples = req_frames * self.CHANNELS
 
+            buffer_to_yield = None
             with self._lock:
                 if self._is_muted or (not self._voices and self._ambient_voice is None):
-                    # Zero CPU load when silent: deliver zero-byte silence buffer
-                    req_frames = yield b"\x00" * (num_samples * 2)
-                    continue
+                    buffer_to_yield = b"\x00" * (num_samples * 2)
+                else:
+                    acc = [0.0] * num_samples
+                    finished_indices: list[int] = []
 
-                acc = [0.0] * num_samples
-                finished_indices: list[int] = []
+                    # 1. Mix short sound effects
+                    for idx, v in enumerate(self._voices):
+                        smps = v.samples
+                        cur = v.cursor
+                        vol = v.volume * self._master_volume
+                        avail = min(len(smps) - cur, num_samples)
 
-                # 1. Mix short sound effects
-                for idx, v in enumerate(self._voices):
-                    smps = v.samples
-                    cur = v.cursor
-                    vol = v.volume * self._master_volume
-                    avail = min(len(smps) - cur, num_samples)
+                        for i in range(avail):
+                            acc[i] += smps[cur + i] * vol
 
-                    for i in range(avail):
-                        acc[i] += smps[cur + i] * vol
+                        v.cursor += avail
+                        if v.cursor >= len(smps):
+                            if v.loop:
+                                v.cursor = 0
+                            else:
+                                finished_indices.append(idx)
 
-                    v.cursor += avail
-                    if v.cursor >= len(smps):
-                        if v.loop:
-                            v.cursor = 0
-                        else:
-                            finished_indices.append(idx)
+                    # Remove completed one-shot voices
+                    for idx in reversed(finished_indices):
+                        self._voices.pop(idx)
 
-                # Remove completed one-shot voices
-                for idx in reversed(finished_indices):
-                    self._voices.pop(idx)
+                    # 2. Mix ambient loop (if active)
+                    if self._ambient_voice is not None:
+                        amb = self._ambient_voice
+                        smps = amb.samples
+                        total_len = len(smps)
+                        vol = amb.volume * self._ambient_volume * self._master_volume
 
-                # 2. Mix ambient loop (if active)
-                if self._ambient_voice is not None:
-                    amb = self._ambient_voice
-                    smps = amb.samples
-                    total_len = len(smps)
-                    vol = amb.volume * self._ambient_volume * self._master_volume
+                        for i in range(num_samples):
+                            acc[i] += smps[amb.cursor] * vol
+                            amb.cursor = (amb.cursor + 1) % total_len
 
-                    for i in range(num_samples):
-                        acc[i] += smps[amb.cursor] * vol
-                        amb.cursor = (amb.cursor + 1) % total_len
+                    # Clamp accumulated samples to signed 16-bit range
+                    clamped = array.array("h", (max(-32768, min(32767, int(s))) for s in acc))
+                    buffer_to_yield = clamped.tobytes()
 
-            # Clamp accumulated samples to signed 16-bit range
-            clamped = array.array("h", (max(-32768, min(32767, int(s))) for s in acc))
-            req_frames = yield clamped.tobytes()
+            req_frames = yield buffer_to_yield

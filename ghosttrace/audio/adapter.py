@@ -42,7 +42,8 @@ class AudioEventAdapter:
 
     Provides semantic, decoupled event hooks (startup, shutdown, notifications,
     Guardian security decisions, developer coding success, errors, and mood shifts).
-    Handles thread safety, duplicate suppression, and non-blocking failure isolation.
+    Handles thread safety, duplicate suppression, non-blocking failure isolation,
+    and experience-mode policy enforcement (Focus, Normal, Ambient, Haunted).
     """
 
     def __init__(
@@ -54,6 +55,7 @@ class AudioEventAdapter:
         self._lock = threading.Lock()
         self._is_shutdown = False
         self._startup_dispatched = False
+        self._experience_mode: str = "normal"
 
         # Bounded cooldown and deduplication state
         self._cooldowns: dict[AudioEventId, float] = (
@@ -70,6 +72,51 @@ class AudioEventAdapter:
         if self.audio_manager is None:
             return False
         return self.audio_manager.settings.audio_enabled
+
+    @property
+    def experience_mode(self) -> str:
+        """Return the active experience mode."""
+        with self._lock:
+            return self._experience_mode
+
+    def set_experience_mode(self, mode: str, force: bool = False) -> None:
+        """Synchronize audio behavior with the active experience mode.
+
+        Policies:
+        - Normal: Normal event sounds; ambient off.
+        - Ambient: Ambient dark hum loop started if audio enabled; normal event sounds.
+        - Haunted: Ambient cold wind loop started if audio enabled; horror sounds active.
+        - Focus: Ambient stopped immediately; non-essential sounds suppressed.
+                 Critical Guardian and error sounds remain audible.
+        """
+        norm_mode = str(mode).strip().lower()
+        with self._lock:
+            if not force and self._experience_mode == norm_mode:
+                return
+            self._experience_mode = norm_mode
+
+        logger.debug("AudioEventAdapter experience mode switched to '%s'.", norm_mode)
+
+        if self.audio_manager is None:
+            return
+
+        # Ambient stream management per mode
+        if norm_mode in ("focus", "normal"):
+            self.audio_manager.stop_ambient()
+        elif norm_mode == "ambient":
+            if self.audio_manager.settings.audio_enabled and not self.audio_manager._is_muted:
+                self.audio_manager.play_ambient(AudioEventId.AMBIENT_DARK_HUM)
+            else:
+                self.audio_manager.stop_ambient()
+        elif norm_mode == "haunted":
+            if self.audio_manager.settings.audio_enabled and not self.audio_manager._is_muted:
+                self.audio_manager.play_ambient(AudioEventId.AMBIENT_COLD_WIND)
+            else:
+                self.audio_manager.stop_ambient()
+
+    def on_experience_mode_changed(self, mode: str, force: bool = False) -> None:
+        """Alias for set_experience_mode."""
+        self.set_experience_mode(mode, force=force)
 
     def _should_suppress_cooldown(self, event_id: AudioEventId, now: float) -> bool:
         """Check if an event should be suppressed by its configured cooldown period."""
@@ -157,7 +204,7 @@ class AudioEventAdapter:
 
         Maps severity to appropriate sound cue:
         - Critical / Error / Warning / important=True -> notification_alert
-        - Info / Normal -> notification_ping
+        - Info / Normal -> notification_ping (suppressed in Focus mode)
         - Status / Debug / Unimportant -> no sound (suppressed)
         """
         norm_severity = (
@@ -167,6 +214,14 @@ class AudioEventAdapter:
         # Unimportant status updates never trigger audio
         if norm_severity in ("status", "debug", "unimportant", "none"):
             return False
+
+        is_important = important or norm_severity in ("warning", "error", "critical", "alert")
+
+        # Focus mode suppresses non-essential notification pings
+        with self._lock:
+            if self._experience_mode == "focus" and not is_important:
+                logger.debug("Focus mode suppressing standard notification ping.")
+                return False
 
         now = time.monotonic()
         clean_msg = message.strip()
@@ -184,7 +239,6 @@ class AudioEventAdapter:
             self._last_notification_text = clean_msg
             self._last_notification_time = now
 
-        is_important = important or norm_severity in ("warning", "error", "critical", "alert")
         target_event = (
             AudioEventId.NOTIFICATION_ALERT if is_important else AudioEventId.NOTIFICATION_PING
         )
@@ -199,7 +253,7 @@ class AudioEventAdapter:
     def on_guardian_intercept(self, command: str = "") -> bool:
         """Triggered when Command Guardian intercepts a dangerous command for approval.
 
-        Never suppressed by standard cooldown to preserve safety awareness.
+        Never suppressed by cooldown or Focus mode to preserve safety awareness.
         """
         logger.debug("Guardian intercepted command for user approval.")
         return self._safe_play(AudioEventId.GUARDIAN_INTERCEPT, enforce_cooldown=False)
@@ -215,14 +269,22 @@ class AudioEventAdapter:
         return self._safe_play(AudioEventId.GUARDIAN_BLOCKED, enforce_cooldown=False)
 
     def on_coding_success(self, intent: str = "") -> bool:
-        """Triggered when a developer coding operation (generation, review, analysis) succeeds."""
+        """Triggered when a developer coding operation (generation, review, analysis) succeeds.
+
+        Suppressed in Focus mode.
+        """
+        with self._lock:
+            if self._experience_mode == "focus":
+                logger.debug("Focus mode suppressing developer coding success sound.")
+                return False
+
         logger.debug("Developer coding task succeeded (%s).", intent)
         return self._safe_play(AudioEventId.CODING_SUCCESS, enforce_cooldown=True)
 
     def on_app_error(self, error: Exception | str | None = None) -> bool:
         """Triggered upon an application-level exception or inference failure.
 
-        Deduplicated against notification errors to avoid harsh double-stingers.
+        Deduplicated against notification errors. Never suppressed in Focus mode.
         """
         now = time.monotonic()
         with self._lock:
@@ -239,16 +301,29 @@ class AudioEventAdapter:
     def on_mood_shift(self, old_mood: Any, new_mood: Any) -> bool:
         """Triggered when the ghost persona transitions between distinct emotional moods.
 
-        Plays ONLY when old_mood != new_mood.
+        Plays ONLY when old_mood != new_mood. Suppressed in Focus mode.
         """
         if old_mood is None or new_mood is None or old_mood == new_mood:
             return False
+
+        with self._lock:
+            if self._experience_mode == "focus":
+                logger.debug("Focus mode suppressing mood shift sound.")
+                return False
 
         logger.debug("Ghost persona mood shift detected: %s -> %s", old_mood, new_mood)
         return self._safe_play(AudioEventId.MOOD_SHIFT, enforce_cooldown=True)
 
     def on_glitch(self, glitch_type: str = "digital") -> bool:
-        """Triggered upon atmospheric digital glitch or terminal fracture events."""
+        """Triggered upon atmospheric digital glitch or terminal fracture events.
+
+        Suppressed in Focus mode.
+        """
+        with self._lock:
+            if self._experience_mode == "focus":
+                logger.debug("Focus mode suppressing glitch sound.")
+                return False
+
         target_event = AudioEventId.GLITCH_DIGITAL
         if glitch_type == "static":
             target_event = AudioEventId.GLITCH_STATIC

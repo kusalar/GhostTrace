@@ -446,6 +446,241 @@ def haunt_preview_cmd(
         console.print(f"[dim #ff5555]Preview failed: {res.reason}[/]")
 
 
+audio_app = typer.Typer(
+    name="audio",
+    help="Horror sound effects, volume control, and audio subsystem management.",
+    no_args_is_help=False,
+)
+app.add_typer(audio_app, name="audio")
+
+
+@audio_app.callback(invoke_without_command=True)
+def audio_default(ctx: typer.Context) -> None:
+    """Show audio subsystem status summary."""
+    if ctx.invoked_subcommand is None:
+        audio_status_cmd()
+
+
+@audio_app.command(name="status")
+def audio_status_cmd() -> None:
+    """Display audio subsystem configuration, volume levels, and device status."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+    from ghosttrace.haunt.engine import HauntEngine
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    try:
+        st = mgr.get_status()
+        haunt = HauntEngine(settings=settings)
+
+        console = Console()
+        console.print("GHOSTTRACE AUDIO SUBSYSTEM")
+        console.print("==================================================")
+        state_badge = "[bold #00ff66]ENABLED[/]" if st.enabled else "[dim #ff5555]DISABLED[/]"
+        console.print(f"  Subsystem State    : {state_badge}")
+        console.print(f"  Backend Type       : {st.backend_type.upper()}")
+        if not st.enabled:
+            device_avail = "[dim]OFFLINE (AUDIO DISABLED)[/]"
+        else:
+            device_avail = (
+                "[bold #00ff66]AVAILABLE[/]"
+                if st.backend_available
+                else "[dim #ffaa00]UNAVAILABLE[/]"
+            )
+        console.print(f"  Playback Device    : {device_avail}")
+        console.print(f"  Master Volume      : {int(st.volume * 100)}% ({st.volume:.2f})")
+        amb_pct = int(st.ambient_volume * 100)
+        console.print(f"  Ambient Volume     : {amb_pct}% ({st.ambient_volume:.2f})")
+        mute_badge = "[bold #ffaa00]MUTED[/]" if st.is_muted else "[bold #00ff66]UNMUTED[/]"
+        console.print(f"  Mute State         : {mute_badge}")
+        console.print(f"  Active Voices      : {st.active_voices_count}")
+        amb_playing = "[bold #00ff66]STREAMING[/]" if st.ambient_playing else "[dim]INACTIVE[/]"
+        console.print(f"  Ambient Loop       : {amb_playing}")
+        console.print(f"  Experience Mode    : [bold #00ff66]{haunt.mode.value.upper()}[/]")
+        console.print("==================================================")
+    finally:
+        mgr.shutdown()
+
+
+@audio_app.command(name="enable")
+def audio_enable_cmd() -> None:
+    """Enable audio for the current configuration and persist preference."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    try:
+        success = mgr.enable(persist=True)
+        console = Console()
+        if success:
+            console.print("[bold #00ff66]Audio subsystem enabled and hardware initialized.[/]")
+        else:
+            console.print(
+                "[bold #ffaa00]Audio enabled in configuration, "
+                "but no hardware playback device is currently available.[/]"
+            )
+    finally:
+        mgr.shutdown()
+
+
+@audio_app.command(name="disable")
+def audio_disable_cmd() -> None:
+    """Disable audio, stop active playback, and persist preference."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    try:
+        mgr.disable(persist=True)
+        console = Console()
+        console.print("[dim #ff5555]Audio subsystem disabled and all playback silenced.[/]")
+    finally:
+        mgr.shutdown()
+
+
+@audio_app.command(name="volume")
+def audio_volume_cmd(
+    value: float = typer.Argument(..., help="Master volume between 0.0 and 1.0 (e.g. 0.7)"),
+) -> None:
+    """Set master output volume and persist preference."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+
+    console = Console()
+    if not (0.0 <= value <= 1.0):
+        console.print(
+            f"[bold #ff5555]Invalid volume {value}. Value must be between 0.0 and 1.0.[/]"
+        )
+        raise typer.Exit(code=1)
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    try:
+        mgr.set_volume(value, persist=True)
+        console.print(
+            f"[bold #00ff66]Master audio volume set to {int(value * 100)}% ({value:.2f}).[/]"
+        )
+    finally:
+        mgr.shutdown()
+
+
+@audio_app.command(name="ambient-volume")
+def audio_ambient_volume_cmd(
+    value: float = typer.Argument(..., help="Ambient volume between 0.0 and 1.0 (e.g. 0.3)"),
+) -> None:
+    """Set ambient background loop volume independently and persist preference."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+
+    console = Console()
+    if not (0.0 <= value <= 1.0):
+        console.print(
+            f"[bold #ff5555]Invalid ambient volume {value}. Value must be between 0.0 and 1.0.[/]"
+        )
+        raise typer.Exit(code=1)
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    try:
+        mgr.set_ambient_volume(value, persist=True)
+        console.print(
+            f"[bold #00ff66]Ambient loop volume set to {int(value * 100)}% ({value:.2f}).[/]"
+        )
+    finally:
+        mgr.shutdown()
+
+
+@audio_app.command(name="mute")
+def audio_mute_cmd() -> None:
+    """Mute audio output without resetting configured volume levels."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    try:
+        mgr.mute(persist=True)
+        console = Console()
+        console.print("[bold #ffaa00]Audio output muted.[/]")
+    finally:
+        mgr.shutdown()
+
+
+@audio_app.command(name="unmute")
+def audio_unmute_cmd() -> None:
+    """Unmute audio output and restore previous configured volume."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    try:
+        mgr.unmute(persist=True)
+        console = Console()
+        console.print(f"[bold #00ff66]Audio output unmuted. Volume: {int(mgr._volume * 100)}%.[/]")
+    finally:
+        mgr.shutdown()
+
+
+@audio_app.command(name="test")
+def audio_test_cmd() -> None:
+    """Play a short verification sound effect to test playback output."""
+    from rich.console import Console
+
+    from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.config.settings import get_settings
+
+    settings = get_settings()
+    mgr = AudioManager(settings=settings)
+    console = Console()
+    try:
+        if not mgr.settings.audio_enabled:
+            console.print(
+                "[dim #ffaa00]Cannot test audio: audio subsystem is currently DISABLED. "
+                "Use 'ghosttrace audio enable' first.[/]"
+            )
+            return
+
+        if mgr._is_muted:
+            console.print(
+                "[dim #ffaa00]Cannot test audio: audio is currently MUTED. "
+                "Use 'ghosttrace audio unmute' first.[/]"
+            )
+            return
+
+        if not mgr.backend.is_available():
+            console.print("[bold #ff5555]Audio playback hardware is UNAVAILABLE on this host.[/]")
+            return
+
+        dispatched = mgr.play_test_sound()
+        if dispatched:
+            import time
+
+            console.print("[bold #00ff66]Dispatched test sound effect (notification ping).[/]")
+            time.sleep(1.2)
+        else:
+            console.print("[bold #ff5555]Failed to dispatch test sound.[/]")
+    finally:
+        mgr.shutdown()
+
+
 def main(args: list[str] | None = None) -> int:
     """Standard CLI entry point returning exit code."""
     if hasattr(sys.stdout, "reconfigure"):

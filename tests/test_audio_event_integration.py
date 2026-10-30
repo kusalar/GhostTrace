@@ -340,7 +340,7 @@ class TestRobustnessAndConcurrency:
 
     def test_audio_disabled_app_initialization_no_hardware(self) -> None:
         """With default disabled audio, app initializes with NullAudioBackend and zero sound."""
-        settings = Settings()
+        settings = Settings(audio_enabled=False)
         app = GhostTraceApp(settings=settings)
         assert app.audio_manager.settings.audio_enabled is False
         assert app.audio_adapter.is_enabled is False

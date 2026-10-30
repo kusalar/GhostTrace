@@ -1697,6 +1697,8 @@ def handle_haunt(args: list[str], context: CommandContext) -> CommandResult:
 
         try:
             new_mode = haunt_engine.set_mode(target_mode)
+            if context.audio_adapter is not None:
+                context.audio_adapter.set_experience_mode(new_mode.value)
             desc_map = {
                 HauntMode.NORMAL: "Standard terminal experience. No unsolicited events.",
                 HauntMode.AMBIENT: "Subtle atmospheric messages and occasional ghost reactions.",
@@ -1834,6 +1836,207 @@ def handle_haunt(args: list[str], context: CommandContext) -> CommandResult:
     )
 
 
+def handle_audio(args: list[str], context: CommandContext) -> CommandResult:
+    """Manage horror sound effects, volume levels, mute, and experience mode audio configuration."""
+    audio_mgr = context.audio_manager
+    if audio_mgr is None:
+        from ghosttrace.audio.manager import AudioManager
+
+        audio_mgr = AudioManager(context.settings)
+        context.audio_manager = audio_mgr
+
+    subcommand = args[0].lower() if args else "status"
+    sub_args = args[1:]
+
+    if subcommand in ("help", "-h", "--help"):
+        lines = [
+            "AUDIO SUBSYSTEM & SOUND CONTROLS",
+            "==================================================",
+            "  audio [status]                 Display audio status, volume, and device.",
+            "  audio enable                   Enable audio and initialize output hardware.",
+            "  audio disable                  Disable audio and silence all playback.",
+            "  audio volume <0.0-1.0>         Adjust master volume and persist preference.",
+            "  audio ambient-volume <0.0-1.0> Adjust ambient loop volume independently.",
+            "  audio mute                     Mute audio output without resetting volume.",
+            "  audio unmute                   Unmute audio output and restore volume.",
+            "  audio test                     Play short test sound effect.",
+            "  audio settings                 Open interactive audio controls modal.",
+            "==================================================",
+            "Experience Modes: normal, ambient, haunted, focus (switched via 'haunt mode <name>')",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "status":
+        st = audio_mgr.get_status()
+        state_badge = "[bold #00ff66]ENABLED[/]" if st.enabled else "[dim #ff5555]DISABLED[/]"
+        device_badge = (
+            "[bold #00ff66]AVAILABLE[/]" if st.backend_available else "[dim #ffaa00]UNAVAILABLE[/]"
+        )
+        mute_badge = "[bold #ffaa00]MUTED[/]" if st.is_muted else "[bold #00ff66]UNMUTED[/]"
+        exp_mode = (
+            context.audio_adapter.experience_mode.upper()
+            if context.audio_adapter
+            else (context.haunt_engine.mode.value.upper() if context.haunt_engine else "NORMAL")
+        )
+        lines = [
+            "GHOSTTRACE AUDIO STATUS",
+            "==================================================",
+            f"  Subsystem State    : {state_badge}",
+            f"  Backend Type       : {st.backend_type.upper()}",
+            f"  Playback Device    : {device_badge}",
+            f"  Master Volume      : {int(st.volume * 100)}% ({st.volume:.2f})",
+            f"  Ambient Volume     : {int(st.ambient_volume * 100)}% ({st.ambient_volume:.2f})",
+            f"  Mute State         : {mute_badge}",
+            f"  Active Voices      : {st.active_voices_count}",
+            f"  Ambient Stream     : {'STREAMING' if st.ambient_playing else 'INACTIVE'}",
+            f"  Experience Mode    : [bold #00ff66]{exp_mode}[/]",
+            "==================================================",
+        ]
+        return CommandResult(success=True, output="\n".join(lines))
+
+    if subcommand == "enable":
+        success = audio_mgr.enable(persist=True)
+        if success:
+            return CommandResult(
+                success=True,
+                output="[bold #00ff66]Audio subsystem enabled and hardware initialized.[/]",
+                command_name="audio",
+            )
+        return CommandResult(
+            success=True,
+            output=(
+                "[bold #ffaa00]Audio enabled in configuration, "
+                "but hardware device is unavailable.[/]"
+            ),
+            command_name="audio",
+        )
+
+    if subcommand == "disable":
+        audio_mgr.disable(persist=True)
+        return CommandResult(
+            success=True,
+            output="[dim #ff5555]Audio subsystem disabled. All sound silenced.[/]",
+            command_name="audio",
+        )
+
+    if subcommand == "volume":
+        if not sub_args:
+            return CommandResult(
+                success=False,
+                output="Usage: audio volume <0.0-1.0> (e.g. 'audio volume 0.7')",
+                command_name="audio",
+            )
+        try:
+            val = float(sub_args[0])
+            if not (0.0 <= val <= 1.0):
+                raise ValueError
+        except ValueError:
+            return CommandResult(
+                success=False,
+                output=f"Invalid volume '{sub_args[0]}'. Must be a float between 0.0 and 1.0.",
+                command_name="audio",
+            )
+        audio_mgr.set_volume(val, persist=True)
+        return CommandResult(
+            success=True,
+            output=f"[bold #00ff66]Master audio volume set to {int(val * 100)}% ({val:.2f}).[/]",
+            command_name="audio",
+        )
+
+    if subcommand in ("ambient-volume", "ambient_volume", "ambient"):
+        if not sub_args:
+            return CommandResult(
+                success=False,
+                output="Usage: audio ambient-volume <0.0-1.0> (e.g. 'audio ambient-volume 0.25')",
+                command_name="audio",
+            )
+        try:
+            val = float(sub_args[0])
+            if not (0.0 <= val <= 1.0):
+                raise ValueError
+        except ValueError:
+            return CommandResult(
+                success=False,
+                output=(
+                    f"Invalid ambient volume '{sub_args[0]}'. Must be a float between 0.0 and 1.0."
+                ),
+                command_name="audio",
+            )
+        audio_mgr.set_ambient_volume(val, persist=True)
+        return CommandResult(
+            success=True,
+            output=f"[bold #00ff66]Ambient loop volume set to {int(val * 100)}% ({val:.2f}).[/]",
+            command_name="audio",
+        )
+
+    if subcommand == "mute":
+        audio_mgr.mute(persist=True)
+        return CommandResult(
+            success=True,
+            output="[bold #ffaa00]Audio output muted.[/]",
+            command_name="audio",
+        )
+
+    if subcommand == "unmute":
+        audio_mgr.unmute(persist=True)
+        return CommandResult(
+            success=True,
+            output=(
+                f"[bold #00ff66]Audio output unmuted. Volume: {int(audio_mgr._volume * 100)}%.[/]"
+            ),
+            command_name="audio",
+        )
+
+    if subcommand == "test":
+        if not audio_mgr.settings.audio_enabled:
+            return CommandResult(
+                success=False,
+                output="Cannot test audio: audio is DISABLED. Use 'audio enable' first.",
+                command_name="audio",
+            )
+        if audio_mgr._is_muted:
+            return CommandResult(
+                success=False,
+                output="Cannot test audio: audio is MUTED. Use 'audio unmute' first.",
+                command_name="audio",
+            )
+        if not audio_mgr.backend.is_available():
+            return CommandResult(
+                success=False,
+                output="Audio hardware playback device is UNAVAILABLE.",
+                command_name="audio",
+            )
+        dispatched = audio_mgr.play_test_sound()
+        if dispatched:
+            return CommandResult(
+                success=True,
+                output="[bold #00ff66]Dispatched test sound effect (notification ping).[/]",
+                command_name="audio",
+            )
+        return CommandResult(
+            success=False,
+            output="Failed to dispatch test sound.",
+            command_name="audio",
+        )
+
+    if subcommand in ("settings", "controls", "ui", "modal"):
+        return CommandResult(
+            success=True,
+            output="Opening audio settings modal...",
+            command_name="audio_settings",
+        )
+
+    return CommandResult(
+        success=False,
+        output=(
+            f"Unknown audio subcommand '{subcommand}'. "
+            "Available: status, enable, disable, volume, ambient-volume, "
+            "mute, unmute, test, settings, help"
+        ),
+        command_name="audio",
+    )
+
+
 def create_default_registry() -> CommandRegistry:
     """Create and populate a CommandRegistry with all standard GhostTrace commands."""
     registry = CommandRegistry()
@@ -1963,6 +2166,15 @@ def create_default_registry() -> CommandRegistry:
             usage="haunt [help|status|mode|events|intensity|history|clear|idle|preview]",
             aliases=["hunt"],
             handler=handle_haunt,
+        )
+    )
+    registry.register(
+        Command(
+            name="audio",
+            description="Horror sound effects, volume control, mute, and experience modes.",
+            usage="audio [status|enable|disable|volume|ambient-volume|mute|unmute|test|settings]",
+            aliases=["sound", "sfx"],
+            handler=handle_audio,
         )
     )
     registry.register(

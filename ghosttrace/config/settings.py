@@ -318,6 +318,10 @@ class Settings(BaseSettings):
         default=0.2,
         description="Volume for ambient horror audio loop between 0.0 and 1.0.",
     )
+    audio_muted: bool = Field(
+        default=False,
+        description="Whether audio playback is muted.",
+    )
     audio_asset_dir: Path | None = Field(
         default=None,
         description="Directory for local horror sound effect assets. Defaults to assets/audio.",

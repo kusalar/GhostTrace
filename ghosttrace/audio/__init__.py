@@ -13,6 +13,13 @@ from ghosttrace.audio.exceptions import (
     InvalidVolumeError,
 )
 from ghosttrace.audio.manager import AudioManager
+from ghosttrace.audio.preferences import (
+    AudioPreferences,
+    apply_preferences_with_precedence,
+    get_audio_preferences_path,
+    load_audio_preferences,
+    save_audio_preferences,
+)
 from ghosttrace.audio.schemas import (
     AudioCategory,
     AudioEventId,
@@ -33,10 +40,15 @@ __all__ = [
     "AudioInitializationError",
     "AudioManager",
     "AudioPlaybackRequest",
+    "AudioPreferences",
     "AudioStatus",
     "InvalidVolumeError",
     "MiniAudioBackend",
     "NotificationSeverity",
     "NullAudioBackend",
     "SoundEffect",
+    "apply_preferences_with_precedence",
+    "get_audio_preferences_path",
+    "load_audio_preferences",
+    "save_audio_preferences",
 ]
