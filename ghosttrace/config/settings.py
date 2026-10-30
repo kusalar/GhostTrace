@@ -301,6 +301,28 @@ class Settings(BaseSettings):
         description="Respect reduced-motion preference (suppress animations/text effects).",
     )
 
+    # Audio Subsystem & Horror Sound Effects (v1.1.0 Step 01 Foundation)
+    audio_enabled: bool = Field(
+        default=False,
+        description="Enable or disable optional horror sound-effects subsystem.",
+    )
+    audio_volume: float = Field(
+        default=0.5,
+        description="Master audio volume between 0.0 and 1.0.",
+    )
+    audio_ambient_enabled: bool = Field(
+        default=False,
+        description="Enable or disable background ambient horror audio loop.",
+    )
+    audio_ambient_volume: float = Field(
+        default=0.2,
+        description="Volume for ambient horror audio loop between 0.0 and 1.0.",
+    )
+    audio_asset_dir: Path | None = Field(
+        default=None,
+        description="Directory for local horror sound effect assets. Defaults to assets/audio.",
+    )
+
     model_config = SettingsConfigDict(
         env_prefix="GHOSTTRACE_",
         env_file=".env",
@@ -619,6 +641,22 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         return value
 
+    @field_validator("audio_volume")
+    @classmethod
+    def validate_audio_volume(cls, value: float) -> float:
+        if not (0.0 <= value <= 1.0):
+            msg = f"Invalid audio_volume {value}. Must be between 0.0 and 1.0."
+            raise ValueError(msg)
+        return value
+
+    @field_validator("audio_ambient_volume")
+    @classmethod
+    def validate_audio_ambient_volume(cls, value: float) -> float:
+        if not (0.0 <= value <= 1.0):
+            msg = f"Invalid audio_ambient_volume {value}. Must be between 0.0 and 1.0."
+            raise ValueError(msg)
+        return value
+
     def model_post_init(self, __context: object) -> None:
         """Resolve computed directories and debug-level adjustments."""
         super().model_post_init(__context)
@@ -655,6 +693,13 @@ class Settings(BaseSettings):
             else (self.app_data_dir / "logs").resolve()
         )
         object.__setattr__(self, "log_dir", resolved_log_dir)
+
+        resolved_audio_dir = (
+            Path(self.audio_asset_dir).resolve()
+            if self.audio_asset_dir is not None
+            else (Path("assets") / "audio").resolve()
+        )
+        object.__setattr__(self, "audio_asset_dir", resolved_audio_dir)
 
         # In debug mode, elevate log level if set to default INFO
         if self.debug and self.log_level == "INFO":

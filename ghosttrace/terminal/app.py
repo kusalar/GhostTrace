@@ -14,6 +14,7 @@ from textual.containers import Horizontal
 from textual.widgets import Footer, Input, Static
 
 from ghosttrace.ai.engine import AIEngine
+from ghosttrace.audio.manager import AudioManager
 from ghosttrace.config.settings import Settings, get_settings
 from ghosttrace.developer.engine import DeveloperEngine
 from ghosttrace.ghost.engine import GhostEngine
@@ -96,6 +97,7 @@ class GhostTraceApp(App[int]):
         memory_engine: MemoryEngine | None = None,
         system_engine: SystemEngine | None = None,
         haunt_engine: HauntEngine | None = None,
+        audio_manager: AudioManager | None = None,
         **kwargs: object,
     ) -> None:
         super().__init__(**kwargs)
@@ -163,6 +165,11 @@ class GhostTraceApp(App[int]):
         else:
             self.haunt_engine = HauntEngine(self.settings, ghost_engine=self.ghost_engine)
 
+        if audio_manager is not None:
+            self.audio_manager = audio_manager
+        else:
+            self.audio_manager = AudioManager(self.settings)
+
         self.last_user_activity = time.time()
 
         self.ai_engine = ai_engine or AIEngine(
@@ -183,6 +190,7 @@ class GhostTraceApp(App[int]):
             memory_engine=self.memory_engine,
             system_engine=self.system_engine,
             haunt_engine=self.haunt_engine,
+            audio_manager=self.audio_manager,
         )
         self.is_generating = False
         self.is_executing_command = False
@@ -512,6 +520,7 @@ class GhostTraceApp(App[int]):
     def action_quit_app(self) -> None:
         """Action handler for clean shutdown (Ctrl+C)."""
         logger.info("User requested application shutdown via shortcut.")
+        self.audio_manager.shutdown()
         self.exit(0)
 
     def action_cancel_input(self) -> None:
