@@ -228,6 +228,7 @@ class MiniAudioBackend(AudioBackend):
         # Concurrency state
         self._voices: list[_Voice] = []
         self._ambient_voice: _Voice | None = None
+        self._frames_delivered: int = 0
 
     def initialize(self) -> bool:
         """Initialize miniaudio playback device with stereo 16-bit 44.1 kHz stream."""
@@ -349,8 +350,12 @@ class MiniAudioBackend(AudioBackend):
             if not self._is_initialized or self._is_shutdown or self._is_muted:
                 return False
 
-            samples = self._load_asset_samples(sound_path)
-            if samples is None:
+        samples = self._load_asset_samples(sound_path)
+        if samples is None:
+            return False
+
+        with self._lock:
+            if not self._is_initialized or self._is_shutdown or self._is_muted:
                 return False
 
             # Voice management: enforce maximum voice limit
@@ -375,8 +380,12 @@ class MiniAudioBackend(AudioBackend):
             if not self._is_initialized or self._is_shutdown:
                 return False
 
-            samples = self._load_asset_samples(sound_path)
-            if samples is None:
+        samples = self._load_asset_samples(sound_path)
+        if samples is None:
+            return False
+
+        with self._lock:
+            if not self._is_initialized or self._is_shutdown:
                 return False
 
             self._ambient_voice = _Voice(
@@ -444,6 +453,10 @@ class MiniAudioBackend(AudioBackend):
                 "muted": self._is_muted,
                 "device_name": self._device_name,
                 "running": running,
+                "sample_rate": self.SAMPLE_RATE,
+                "channels": self.CHANNELS,
+                "sample_format": "s16le",
+                "frames_delivered": self._frames_delivered,
             }
 
     def _mixer_callback_generator(self) -> Any:
@@ -501,4 +514,9 @@ class MiniAudioBackend(AudioBackend):
                     clamped = array.array("h", (max(-32768, min(32767, int(s))) for s in acc))
                     buffer_to_yield = clamped.tobytes()
 
+            self._frames_delivered += req_frames
             req_frames = yield buffer_to_yield
+
+        # Safely yield silence on shutdown until stream is closed
+        while True:
+            yield b"\x00" * (max(req_frames or 0, 512) * self.CHANNELS * 2)

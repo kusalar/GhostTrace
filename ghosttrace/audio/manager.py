@@ -57,6 +57,7 @@ class AudioManager:
 
         self._volume: float = self.settings.audio_volume
         self._director: Any | None = None
+        self._whisper_scheduler: Any | None = None
         self._ambient_volume: float = self.settings.audio_ambient_volume
         self._is_muted: bool = self.settings.audio_muted
 
@@ -115,7 +116,11 @@ class AudioManager:
         """Explicitly re-initialize backend resources if previously shutdown."""
         with self._init_lock:
             with self._lock:
-                if not self._is_shutdown and self.backend.is_available():
+                if (
+                    not self._is_shutdown
+                    and not isinstance(self.backend, NullAudioBackend)
+                    and self.backend.is_available()
+                ):
                     return True
                 self._is_shutdown = False
 
@@ -142,7 +147,7 @@ class AudioManager:
     def is_available(self) -> bool:
         """Return True if backend is initialized and playback hardware is available."""
         with self._lock:
-            return self.backend.is_available()
+            return not isinstance(self.backend, NullAudioBackend) and self.backend.is_available()
 
     def enable(self, persist: bool = True) -> bool:
         """Enable audio subsystem, initialize hardware if available, and persist preference."""
@@ -150,7 +155,7 @@ class AudioManager:
             with self._lock:
                 self.settings.audio_enabled = True
                 self._is_shutdown = False
-                if self.backend.is_available():
+                if not isinstance(self.backend, NullAudioBackend) and self.backend.is_available():
                     if persist:
                         self._persist_current_preferences()
                     return True
@@ -184,6 +189,20 @@ class AudioManager:
                     self.backend.initialize()
                 success = False
 
+            with self._lock:
+                scheduler = self._whisper_scheduler
+                whispers_active = (
+                    success
+                    and self.settings.audio_scheduled_whispers_enabled
+                    and not self._is_muted
+                )
+
+            if scheduler is not None:
+                if whispers_active:
+                    scheduler.start()
+                else:
+                    scheduler.cancel()
+
             if persist:
                 self._persist_current_preferences()
             return success
@@ -200,6 +219,10 @@ class AudioManager:
                 )
                 self.backend.set_muted(self._is_muted)
                 self.backend.initialize()
+                scheduler = self._whisper_scheduler
+
+            if scheduler is not None:
+                scheduler.cancel()
 
             if old_backend is not None:
                 with contextlib.suppress(Exception):
@@ -296,7 +319,7 @@ class AudioManager:
                 logger.debug("Asset file missing or unresolvable for audio event: %s", event_id)
                 return False
 
-            effective_volume = max(0.0, min(1.0, self._volume * volume_scale))
+            effective_volume = max(0.0, min(1.0, volume_scale))
             return self.backend.play(asset_path, volume=effective_volume, loop=loop)
 
     def play_ambient(
@@ -370,8 +393,11 @@ class AudioManager:
             self.settings.audio_muted = True
             self.backend.set_muted(True)
             self.backend.stop_all()
+            scheduler = self._whisper_scheduler
             if persist:
                 self._persist_current_preferences()
+        if scheduler is not None:
+            scheduler.cancel()
 
     def unmute(self, persist: bool = True) -> None:
         """Unmute audio output and restore previous configured volume."""
@@ -379,8 +405,14 @@ class AudioManager:
             self._is_muted = False
             self.settings.audio_muted = False
             self.backend.set_muted(False)
+            scheduler = self._whisper_scheduler
+            whispers_active = (
+                self.settings.audio_enabled and self.settings.audio_scheduled_whispers_enabled
+            )
             if persist:
                 self._persist_current_preferences()
+        if scheduler is not None and whispers_active:
+            scheduler.start()
 
     @property
     def is_muted(self) -> bool:
@@ -417,8 +449,27 @@ class AudioManager:
         """Configure scheduled whisper effects and optionally persist preferences."""
         with self._lock:
             self.settings.audio_scheduled_whispers_enabled = bool(enabled)
+            scheduler = self._whisper_scheduler
+            whispers_active = bool(enabled) and self.settings.audio_enabled and not self._is_muted
             if persist:
                 self._persist_current_preferences()
+
+        if scheduler is not None:
+            if whispers_active:
+                scheduler.start()
+            else:
+                scheduler.cancel()
+
+    @property
+    def whisper_scheduler(self) -> Any | None:
+        """Return attached WhisperScheduler instance."""
+        with self._lock:
+            return self._whisper_scheduler
+
+    def set_whisper_scheduler(self, scheduler: Any) -> None:
+        """Attach a WhisperScheduler instance."""
+        with self._lock:
+            self._whisper_scheduler = scheduler
 
     @property
     def dynamic_horror_enabled(self) -> bool:
@@ -458,4 +509,4 @@ class AudioManager:
             if asset_path is None:
                 return False
 
-            return self.backend.play(asset_path, volume=self._volume)
+            return self.backend.play(asset_path, volume=1.0)

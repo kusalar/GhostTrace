@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import sys
 from typing import Annotated
 
@@ -764,55 +763,123 @@ def audio_horror_cmd(
 
 
 @audio_app.command(name="test")
-def audio_test_cmd() -> None:
-    """Play a short verification sound effect to test playback output."""
+def audio_test_cmd(
+    wait: bool = typer.Option(
+        True, "--wait/--nowait", help="Wait synchronously and verify playback completion."
+    ),
+) -> None:
+    """Play a short verification sound effect to test and prove audible output."""
+    import time
+    import wave
+
     from rich.console import Console
 
     from ghosttrace.audio.manager import AudioManager
+    from ghosttrace.audio.schemas import AudioEventId
     from ghosttrace.config.settings import get_settings
 
     settings = get_settings()
     mgr = AudioManager(settings=settings)
     console = Console()
     try:
+        console.print("[bold #00ff66]GHOSTTRACE AUDIO HARDWARE DIAGNOSTIC[/]")
+        console.print("=" * 50)
+
         if not mgr.settings.audio_enabled:
             console.print(
-                "[dim #ffaa00]Cannot test audio: audio subsystem is currently DISABLED. "
+                "[dim #ffaa00]Cannot test audio: audio subsystem is currently DISABLED.\n"
                 "Use 'ghosttrace audio enable' first.[/]"
             )
             return
 
         if mgr._is_muted:
             console.print(
-                "[dim #ffaa00]Cannot test audio: audio is currently MUTED. "
+                "[dim #ffaa00]Cannot test audio: audio is currently MUTED.\n"
                 "Use 'ghosttrace audio unmute' first.[/]"
             )
             return
 
-        if not mgr.backend.is_available():
+        if not mgr.is_available():
             console.print("[bold #ff5555]Audio playback hardware is UNAVAILABLE on this host.[/]")
             return
 
-        dispatched = mgr.play_test_sound()
-        if dispatched:
-            import time
+        status = mgr.backend.get_status()
+        device_name = status.get("device_name", "Default Playback Device")
+        backend_type = status.get("backend", "unknown")
+        sample_rate = status.get("sample_rate", 44100)
+        channels = status.get("channels", 2)
+        fmt = status.get("sample_format", "s16le")
 
-            console.print("[bold #00ff66]Dispatched test sound effect (notification ping).[/]")
-            time.sleep(1.2)
+        console.print(f"  Backend Type       : [cyan]{backend_type.upper()}[/]")
+        console.print(f"  Playback Device    : [bold]{device_name}[/]")
+        console.print(f"  Stream Format      : {sample_rate} Hz, {channels} ch ({fmt})")
+        console.print(f"  Master Volume      : {int(mgr.master_volume * 100)}%")
+
+        asset_path = mgr.resolve_asset_path(AudioEventId.NOTIFICATION_PING)
+        if asset_path is None:
+            asset_path = mgr.resolve_asset_path(AudioEventId.STARTUP)
+
+        if asset_path is None:
+            console.print(
+                "[bold #ff5555]Error: Test sound effect asset file could not be resolved.[/]"
+            )
+            return
+
+        asset_dur = 0.0
+        try:
+            with wave.open(str(asset_path), "rb") as wf:
+                asset_dur = wf.getnframes() / wf.getframerate()
+        except Exception:
+            asset_dur = 0.60
+
+        console.print(f"  Test Asset         : {asset_path.name} ({asset_dur:.2f}s)")
+        console.print("=" * 50)
+
+        initial_frames = status.get("frames_delivered", 0)
+        dispatched = mgr.play_test_sound()
+
+        if not dispatched:
+            console.print("[bold #ff5555]Failed to dispatch test sound into playback queue.[/]")
+            return
+
+        console.print("[bold #00ff66]Dispatched test sound effect to playback stream.[/]")
+
+        if wait:
+            # Synchronously poll active voice progression until playback completes
+            start_time = time.monotonic()
+            timeout = max(3.0, asset_dur + 1.5)
+            verified = False
+
+            while (time.monotonic() - start_time) < timeout:
+                time.sleep(0.08)
+                cur_status = mgr.backend.get_status()
+                delivered = cur_status.get("frames_delivered", 0) - initial_frames
+                voices = cur_status.get("active_voices", 0)
+                if delivered > 0 and voices == 0:
+                    verified = True
+                    break
+
+            final_status = mgr.backend.get_status()
+            frames_delivered = final_status.get("frames_delivered", 0) - initial_frames
+
+            if verified or frames_delivered > 0:
+                console.print(
+                    f"[bold #00ff66]AUDIBLE OUTPUT VERIFIED[/]: "
+                    f"{frames_delivered} frames delivered to audio stream successfully."
+                )
+            else:
+                console.print("[bold #ffaa00]Diagnostic finished; voice completion unverified.[/]")
         else:
-            console.print("[bold #ff5555]Failed to dispatch test sound.[/]")
+            time.sleep(0.2)
     finally:
         mgr.shutdown()
 
 
 def main(args: list[str] | None = None) -> int:
     """Standard CLI entry point returning exit code."""
-    if hasattr(sys.stdout, "reconfigure"):
-        with contextlib.suppress(Exception):
-            sys.stdout.reconfigure(errors="replace")
-    if hasattr(sys.stderr, "reconfigure"):
-        with contextlib.suppress(Exception):
-            sys.stderr.reconfigure(errors="replace")
+    from ghosttrace.terminal.interface import configure_terminal_console
+
+    configure_terminal_console()
     try:
         app(args=args, standalone_mode=False)
         return 0

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
@@ -210,7 +211,13 @@ class AIEngine:
 
     def ask_stream(self, prompt: str) -> Iterator[str]:
         """Stream assistant response tokens and record completed message in conversation."""
+        from ghosttrace.core.diagnostics import diag_log
+
+        diag_log("AI.ASK_STREAM.START", f"prompt_len={len(prompt)}")
+        diag_log("AI.LOAD_MODEL.START")
+        t0 = time.perf_counter()
         model = self.model_manager.load_model()
+        diag_log("AI.LOAD_MODEL.DONE", f"duration={time.perf_counter() - t0:.3f}s")
 
         dev_instructions: str | None = None
         if (
@@ -249,9 +256,15 @@ class AIEngine:
 
         collected: list[str] = []
         try:
+            diag_log("AI.GENERATE_STREAM.START", f"messages_count={len(messages)}")
+            first = True
             for token in self.inference_engine.generate_stream(model, messages):
+                if first:
+                    diag_log("AI.FIRST_TOKEN", f"token={token!r}")
+                    first = False
                 collected.append(token)
                 yield token
+            diag_log("AI.GENERATE_STREAM.DONE", f"total_tokens={len(collected)}")
         finally:
             full_text = "".join(collected).strip()
             if full_text:

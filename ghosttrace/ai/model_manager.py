@@ -136,13 +136,25 @@ class ModelManager:
             try:
                 import llama_cpp
 
+                # Silence native C-level llama.cpp logging to stderr to prevent terminal corruption
+                if hasattr(llama_cpp, "llama_log_set") and hasattr(llama_cpp, "llama_log_callback"):
+                    try:
+
+                        def _silent_llama_log(level: int, text: bytes, user_data: Any) -> None:
+                            pass
+
+                        _log_cb = llama_cpp.llama_log_callback(_silent_llama_log)
+                        llama_cpp.llama_log_set(_log_cb, None)
+                    except Exception as log_exc:
+                        logger.debug("Failed to set silent llama.cpp logger callback: %s", log_exc)
+
                 self._model = llama_cpp.Llama(
                     model_path=str(target),
                     n_ctx=self.settings.ai_context_size,
                     n_threads=self.settings.ai_threads,
                     n_batch=self.settings.ai_batch_size,
                     n_gpu_layers=self.settings.ai_gpu_layers,
-                    verbose=self.settings.debug,
+                    verbose=False,
                 )
                 self._status = ModelStatus.READY
                 self._last_error = None

@@ -1,5 +1,8 @@
 """Application logging infrastructure for GhostTrace."""
 
+from __future__ import annotations
+
+import contextlib
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
@@ -13,10 +16,15 @@ DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 _LOGGING_INITIALIZED = False
 
 
-def setup_logging(settings: Settings | None = None) -> logging.Logger:
-    """Initialize application-wide logging with console and rotating file handlers.
+def setup_logging(
+    settings: Settings | None = None,
+    enable_console: bool = True,
+) -> logging.Logger:
+    """Initialize application-wide logging with file and optional console handlers.
 
-    Safe against duplicate handler registration.
+    When enable_console is False (e.g. during interactive Textual TUI execution),
+    logs are written strictly to the rotating log file to prevent terminal screen
+    corruption and input widget overwrites. Safe against duplicate handler registration.
     """
     global _LOGGING_INITIALIZED
 
@@ -27,18 +35,24 @@ def setup_logging(settings: Settings | None = None) -> logging.Logger:
     root_logger = logging.getLogger()
     app_logger = logging.getLogger("ghosttrace")
 
-    # If already initialized, update levels and return existing logger
-    if _LOGGING_INITIALIZED:
-        root_logger.setLevel(target_level)
-        app_logger.setLevel(target_level)
-        return app_logger
+    formatter = logging.Formatter(fmt=DEFAULT_LOG_FORMAT, datefmt=DEFAULT_DATE_FORMAT)
 
     # Ensure log directory exists
     log_dir: Path = settings.log_dir or (settings.app_data_dir / "logs")
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file_path = log_dir / "ghosttrace.log"
 
-    formatter = logging.Formatter(fmt=DEFAULT_LOG_FORMAT, datefmt=DEFAULT_DATE_FORMAT)
+    # If already initialized, reconcile console handler and levels
+    if _LOGGING_INITIALIZED:
+        root_logger.setLevel(target_level)
+        app_logger.setLevel(target_level)
+
+        if not enable_console:
+            disable_console_logging()
+        else:
+            _ensure_console_handler(root_logger, formatter, target_level)
+
+        return app_logger
 
     # Console Handler (stdout)
     console_handler = logging.StreamHandler(sys.stdout)
@@ -57,23 +71,65 @@ def setup_logging(settings: Settings | None = None) -> logging.Logger:
 
     # Attach handlers to root logger so all subsystem loggers inherit them cleanly
     root_logger.setLevel(target_level)
-    # Remove any pre-existing default handlers to prevent duplication
     for handler in list(root_logger.handlers):
         root_logger.removeHandler(handler)
 
-    root_logger.addHandler(console_handler)
+    if enable_console:
+        root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
 
     app_logger.setLevel(target_level)
     _LOGGING_INITIALIZED = True
 
     app_logger.debug(
-        "Logging initialized. Level: %s, Log file: %s",
+        "Logging initialized. Level: %s, Console: %s, Log file: %s",
         settings.log_level,
+        enable_console,
         log_file_path,
     )
 
     return app_logger
+
+
+def disable_console_logging() -> None:
+    """Detach any stdout/stderr StreamHandlers to prevent terminal screen corruption in TUI."""
+    root_logger = logging.getLogger()
+    for handler in list(root_logger.handlers):
+        if (
+            isinstance(handler, logging.StreamHandler)
+            and not isinstance(handler, RotatingFileHandler)
+            and getattr(handler, "stream", None) in (sys.stdout, sys.stderr)
+        ):
+            root_logger.removeHandler(handler)
+            with contextlib.suppress(Exception):
+                handler.close()
+
+
+def enable_console_logging(settings: Settings | None = None) -> None:
+    """Attach stdout StreamHandler if not already present."""
+    if settings is None:
+        settings = get_settings()
+    target_level = getattr(logging, settings.log_level.upper(), logging.INFO)
+    root_logger = logging.getLogger()
+    formatter = logging.Formatter(fmt=DEFAULT_LOG_FORMAT, datefmt=DEFAULT_DATE_FORMAT)
+    _ensure_console_handler(root_logger, formatter, target_level)
+
+
+def _ensure_console_handler(
+    logger: logging.Logger, formatter: logging.Formatter, level: int
+) -> None:
+    """Internal helper to attach stdout StreamHandler if absent."""
+    has_console = any(
+        isinstance(h, logging.StreamHandler)
+        and not isinstance(h, RotatingFileHandler)
+        and getattr(h, "stream", None) == sys.stdout
+        for h in logger.handlers
+    )
+    if not has_console:
+        ch = logging.StreamHandler(sys.stdout)
+        ch.setLevel(level)
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
 
 
 def get_logger(name: str = "ghosttrace") -> logging.Logger:

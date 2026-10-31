@@ -94,6 +94,7 @@ class AudioSettingsModal(ModalScreen[None]):
         self.audio_manager = audio_manager
         self.audio_adapter = audio_adapter
         self.experience_mode = experience_mode
+        self._is_toggling_enable = False
 
     def compose(self) -> ComposeResult:
         with Container(id="audio-dialog"):
@@ -214,6 +215,8 @@ class AudioSettingsModal(ModalScreen[None]):
         return f"[{'#' * filled}{'.' * empty}]"
 
     def _refresh_display(self) -> None:
+        if not self.is_mounted:
+            return
         try:
             details_widget = self.query_one("#audio-details", Static)
             details_widget.update(self._render_details())
@@ -291,11 +294,18 @@ class AudioSettingsModal(ModalScreen[None]):
     @work(thread=True)
     def action_toggle_enable(self) -> None:
         """Toggle audio enabled state in background thread to prevent UI freezing."""
-        if self.audio_manager.settings.audio_enabled:
-            self.audio_manager.disable(persist=True)
-        else:
-            self.audio_manager.enable(persist=True)
-        self.app.call_from_thread(self._refresh_display)
+        if getattr(self, "_is_toggling_enable", False):
+            return
+        self._is_toggling_enable = True
+        try:
+            if self.audio_manager.settings.audio_enabled:
+                self.audio_manager.disable(persist=True)
+            else:
+                self.audio_manager.enable(persist=True)
+        finally:
+            self._is_toggling_enable = False
+            if self.is_mounted:
+                self.app.call_from_thread(self._refresh_display)
 
     def action_toggle_mute(self) -> None:
         """Toggle mute state immediately."""
@@ -329,7 +339,18 @@ class AudioSettingsModal(ModalScreen[None]):
     def action_toggle_whispers(self) -> None:
         """Toggle scheduled whispers state immediately and persist preferences."""
         curr = self.audio_manager.settings.audio_scheduled_whispers_enabled
-        self.audio_manager.set_scheduled_whispers(not curr, persist=True)
+        new_val = not curr
+        self.audio_manager.set_scheduled_whispers(new_val, persist=True)
+        if self.audio_adapter and getattr(self.audio_adapter, "_whisper_scheduler", None):
+            sched = self.audio_adapter._whisper_scheduler
+            if (
+                new_val
+                and self.audio_manager.settings.audio_enabled
+                and not self.audio_manager._is_muted
+            ):
+                sched.start()
+            else:
+                sched.cancel()
         self._refresh_display()
 
     def action_toggle_horror(self) -> None:

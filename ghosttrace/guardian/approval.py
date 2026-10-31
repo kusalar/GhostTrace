@@ -164,6 +164,10 @@ class ApprovalManager:
         # Return last inserted request
         return next(reversed(self._pending_requests.values()))
 
+    def has_pending(self) -> bool:
+        """Return True if there are active pending approval requests."""
+        return len(self._pending_requests) > 0
+
     @property
     def pending_count(self) -> int:
         """Return the count of active pending approval requests."""

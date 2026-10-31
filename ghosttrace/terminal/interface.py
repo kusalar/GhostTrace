@@ -9,19 +9,75 @@ from rich.panel import Panel
 from rich.table import Table
 
 from ghosttrace.config.settings import Settings, get_settings
-from ghosttrace.core.logging import setup_logging
+from ghosttrace.core.logging import disable_console_logging, setup_logging
 
 logger = logging.getLogger("ghosttrace.terminal.interface")
 
 
+def configure_terminal_console() -> None:
+    """Configure Windows console code pages, standard stream encodings, and robust writer thread."""
+    import contextlib
+    import sys
+
+    if sys.platform == "win32":
+        with contextlib.suppress(Exception):
+            import ctypes
+
+            ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+            ctypes.windll.kernel32.SetConsoleCP(65001)
+
+    for stream_name in ("stdout", "stderr", "__stdout__", "__stderr__", "stdin", "__stdin__"):
+        stream = getattr(sys, stream_name, None)
+        if stream is not None and hasattr(stream, "reconfigure"):
+            with contextlib.suppress(Exception):
+                stream.reconfigure(encoding="utf-8", errors="replace")
+
+    with contextlib.suppress(Exception):
+        from textual.drivers._writer_thread import WriterThread
+
+        if not getattr(WriterThread, "_ghosttrace_safe_writer", False):
+
+            def _safe_writer_thread_run(self: WriterThread) -> None:
+                write = self._file.write
+                flush = self._file.flush
+                get = self._queue.get
+                qsize = self._queue.qsize
+                while True:
+                    text: str | None = get()
+                    if text is None:
+                        break
+                    try:
+                        write(text)
+                    except Exception:
+                        try:
+                            safe_text = text.encode("utf-8", errors="replace").decode(
+                                "utf-8", errors="replace"
+                            )
+                            write(safe_text)
+                        except Exception:
+                            pass
+                    try:
+                        if qsize() == 0:
+                            flush()
+                    except Exception:
+                        pass
+                with contextlib.suppress(Exception):
+                    flush()
+
+            WriterThread.run = _safe_writer_thread_run
+            WriterThread._ghosttrace_safe_writer = True
+
+
 def run_terminal_app(settings: Settings | None = None) -> int:
     """Launch the interactive Textual terminal application."""
+    configure_terminal_console()
     from ghosttrace.terminal.app import GhostTraceApp
 
     if settings is None:
         settings = get_settings()
 
-    setup_logging(settings)
+    setup_logging(settings, enable_console=False)
+    disable_console_logging()
     logger.info("Starting GhostTrace interactive terminal session...")
 
     app = GhostTraceApp(settings=settings)

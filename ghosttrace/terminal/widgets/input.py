@@ -53,13 +53,17 @@ class CommandInput(Input):
 
     def on_key(self, event: events.Key) -> None:
         """Handle Up and Down arrow keys to navigate command history."""
+        from ghosttrace.core.diagnostics import diag_log
+
+        msg = f"k={event.key!r} c={event.character!r} f={self.has_focus}"
+        diag_log("INPUT.ON_KEY", msg)
         # Privacy: Notify app of aggregate typing activity WITHOUT passing key or character data
         try:
             app = self.app
             if hasattr(app, "on_keystroke_activity"):
                 app.on_keystroke_activity()
-        except Exception:
-            pass
+        except Exception as exc:
+            diag_log("INPUT.KEY_ACT_ERR", str(exc))
 
         if event.key == "up":
             prev_cmd = self.history.get_previous(self.value)

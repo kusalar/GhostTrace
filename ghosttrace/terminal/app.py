@@ -22,6 +22,7 @@ from ghosttrace.audio.manager import AudioManager
 from ghosttrace.audio.typing_effects import TypingEffectsManager
 from ghosttrace.audio.whisper_scheduler import WhisperScheduler
 from ghosttrace.config.settings import Settings, get_settings
+from ghosttrace.core.logging import disable_console_logging
 from ghosttrace.developer.engine import DeveloperEngine
 from ghosttrace.ghost.engine import GhostEngine
 from ghosttrace.guardian.engine import GuardianEngine
@@ -108,6 +109,9 @@ class GhostTraceApp(App[int]):
         **kwargs: object,
     ) -> None:
         super().__init__(**kwargs)
+        from ghosttrace.terminal.interface import configure_terminal_console
+
+        configure_terminal_console()
         self.settings = settings or get_settings()
         self.session_id = uuid.uuid4().hex[:12]
         self.history = SessionHistory()
@@ -203,6 +207,7 @@ class GhostTraceApp(App[int]):
             context_check_func=self._is_safe_for_whisper,
         )
         self.audio_adapter._whisper_scheduler = self.whisper_scheduler
+        self.audio_manager.set_whisper_scheduler(self.whisper_scheduler)
         self._last_observed_mood: str | None = None
         self._last_observed_haunt_mode: str | None = None
         self.last_user_activity = time.time()
@@ -245,10 +250,30 @@ class GhostTraceApp(App[int]):
 
         yield Footer()
 
+    def _ensure_input_focus(self) -> None:
+        """Safely restore keyboard focus to the command input field."""
+        from ghosttrace.core.diagnostics import diag_log
+
+        try:
+            if len(self.screen_stack) > 1:
+                diag_log("FOCUS.SKIP_MODAL", f"screens={len(self.screen_stack)}")
+                return
+            cmd_input = self.query_one("#command-input", CommandInput)
+            if cmd_input is not None:
+                cmd_input.focus()
+                msg = f"f={cmd_input.has_focus} d={cmd_input.disabled}"
+                diag_log("FOCUS.INPUT_FOCUSED", msg)
+        except Exception as exc:
+            diag_log("FOCUS.ERROR", str(exc))
+
+    def on_screen_resume(self) -> None:
+        """Ensure command input gets focused whenever returning to the main screen."""
+        self._ensure_input_focus()
+
     def on_mount(self) -> None:
         """Focus the command input field upon application mount and refresh status."""
-        cmd_input = self.query_one("#command-input", CommandInput)
-        cmd_input.focus()
+        disable_console_logging()
+        self._ensure_input_focus()
         self._refresh_subsystem_status()
 
         # Trigger session start atmospheric event if eligible
@@ -261,6 +286,7 @@ class GhostTraceApp(App[int]):
 
         # Periodic lightweight idle check
         self.set_interval(15.0, self._check_idle_whisper)
+        self.set_interval(0.5, self._log_heartbeat)
         logger.info("GhostTrace terminal UI mounted successfully.")
 
         # Dispatch application startup sound effect
@@ -268,6 +294,12 @@ class GhostTraceApp(App[int]):
 
         # Start scheduled whisper engine
         self.whisper_scheduler.start()
+
+    def _log_heartbeat(self) -> None:
+        """Periodic diagnostic heartbeat proving main event loop activity."""
+        from ghosttrace.core.diagnostics import diag_log
+
+        diag_log("MAIN.HEARTBEAT", f"is_generating={self.is_generating}")
 
     def on_unmount(self) -> None:
         """Release local AI and audio resources cleanly upon shutdown."""
@@ -374,10 +406,14 @@ class GhostTraceApp(App[int]):
         Strict Privacy Notice:
         No keystroke character, keycode, or text content is ever accepted or inspected.
         """
+        from ghosttrace.core.diagnostics import diag_log
+
+        diag_log("APP.KEYSTROKE_ACT.START")
         if hasattr(self, "audio_director") and self.audio_director is not None:
             self.audio_director.record_typing_activity()
         if hasattr(self, "typing_effects") and self.typing_effects is not None:
             self.typing_effects.record_keystroke()
+        diag_log("APP.KEYSTROKE_ACT.DONE")
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle command submission or route natural-language input to AI engine."""
@@ -385,6 +421,7 @@ class GhostTraceApp(App[int]):
         event.input.value = ""
 
         if not raw_text:
+            self._ensure_input_focus()
             return
 
         self.last_user_activity = time.time()
@@ -426,29 +463,32 @@ class GhostTraceApp(App[int]):
                         )
 
                         def _on_approval_decision(approved: bool) -> None:
-                            if approved:
-                                self.audio_adapter.on_guardian_approved(latest_req.token)
-                                self._dispatch_approved_execution(
-                                    latest_req.token,
-                                    latest_req.analysis.original_command,
-                                )
-                            else:
-                                self.audio_adapter.on_guardian_blocked(
-                                    latest_req.token, "Cancelled by user"
-                                )
-                                self.guardian_engine.cancel_approval(latest_req.token)
-                                output = (
-                                    f"Execution of '{latest_req.analysis.original_command}' "
-                                    "was cancelled."
-                                )
-                                conv_log.add_exchange(
-                                    f"guard cancel {latest_req.token}",
-                                    CommandResult(
-                                        success=True,
-                                        output=output,
-                                    ),
-                                )
-                                self._refresh_subsystem_status()
+                            try:
+                                if approved:
+                                    self.audio_adapter.on_guardian_approved(latest_req.token)
+                                    self._dispatch_approved_execution(
+                                        latest_req.token,
+                                        latest_req.analysis.original_command,
+                                    )
+                                else:
+                                    self.audio_adapter.on_guardian_blocked(
+                                        latest_req.token, "Cancelled by user"
+                                    )
+                                    self.guardian_engine.cancel_approval(latest_req.token)
+                                    output = (
+                                        f"Execution of '{latest_req.analysis.original_command}' "
+                                        "was cancelled."
+                                    )
+                                    conv_log.add_exchange(
+                                        f"guard cancel {latest_req.token}",
+                                        CommandResult(
+                                            success=True,
+                                            output=output,
+                                        ),
+                                    )
+                                    self._refresh_subsystem_status()
+                            finally:
+                                self._ensure_input_focus()
 
                         self.push_screen(
                             CommandApprovalModal(
@@ -460,6 +500,7 @@ class GhostTraceApp(App[int]):
                         )
                 else:
                     self.audio_adapter.on_guardian_blocked(reason="Execution request rejected")
+                    self._ensure_input_focus()
 
             if result.command_name == "audio_settings":
                 exp_mode = (
@@ -472,9 +513,11 @@ class GhostTraceApp(App[int]):
                         audio_manager=self.audio_manager,
                         audio_adapter=self.audio_adapter,
                         experience_mode=exp_mode,
-                    )
+                    ),
+                    callback=lambda _: self._ensure_input_focus(),
                 )
 
+            self._ensure_input_focus()
             if result.should_exit:
                 self.exit(0)
             return
@@ -489,11 +532,19 @@ class GhostTraceApp(App[int]):
             except Exception as exc:
                 logger.debug("Failed to persist user message: %s", exc)
 
+        from ghosttrace.core.diagnostics import diag_log
+
+        diag_log("APP.SUBMIT_AI_QUERY", f"raw_text={raw_text!r} is_generating={self.is_generating}")
         if self.is_generating:
             conv_log.add_busy_warning(raw_text)
+            self._ensure_input_focus()
             return
 
-        self._dispatch_ai_query(raw_text)
+        self.is_generating = True
+        diag_log("APP.DISPATCH_WORKER.CALLING")
+        worker = self._dispatch_ai_query(raw_text)
+        diag_log("APP.DISPATCH_WORKER.CALLED", f"worker={worker!r}")
+        self._ensure_input_focus()
 
     @work(thread=True)
     def _dispatch_approved_execution(self, token: str, command: str) -> None:
@@ -529,14 +580,20 @@ class GhostTraceApp(App[int]):
     @work(thread=True)
     def _dispatch_ai_query(self, query: str) -> None:
         """Execute local model inference in a background thread to prevent UI freezing."""
-        self.is_generating = True
+        from ghosttrace.core.diagnostics import diag_log
+
+        diag_log("WORKER.START", f"query={query!r}")
         conv_log = self.query_one("#conversation-log", ConversationLog)
         header = self.query_one("#app-header", GhostTraceHeader)
 
+        diag_log("WORKER.CALL_FROM_THREAD.THINKING.START")
         self.call_from_thread(header.update_ai_status, "THINKING...", "bold #ffff33")
+        diag_log("WORKER.CALL_FROM_THREAD.THINKING.DONE")
 
         widget_id = f"ai-resp-{uuid.uuid4().hex[:8]}"
+        diag_log("WORKER.CALL_FROM_THREAD.PENDING.START")
         self.call_from_thread(conv_log.add_pending_ai_query, query, widget_id)
+        diag_log("WORKER.CALL_FROM_THREAD.PENDING.DONE", f"widget_id={widget_id}")
 
         try:
             status = self.ai_engine.get_status()
@@ -551,10 +608,20 @@ class GhostTraceApp(App[int]):
                 return
 
             collected: list[str] = []
-            for token in self.ai_engine.ask_stream(query):
+            last_ui_update = time.monotonic()
+            # Throttle stream UI updates to ~16 FPS to prevent event loop starvation
+            update_interval = 0.06
+
+            diag_log("WORKER.TOKEN_LOOP.START")
+            for token_count, token in enumerate(self.ai_engine.ask_stream(query), 1):
                 collected.append(token)
-                current = "".join(collected)
-                self.call_from_thread(conv_log.update_ai_stream, widget_id, current)
+                now = time.monotonic()
+                if (now - last_ui_update >= update_interval) or ("\n" in token):
+                    current = "".join(collected)
+                    diag_log("WORKER.UI_UPDATE.START", f"tok={token_count} len={len(current)}")
+                    self.call_from_thread(conv_log.update_ai_stream, widget_id, current)
+                    diag_log("WORKER.UI_UPDATE.DONE", f"token_count={token_count}")
+                    last_ui_update = now
 
             final_text = "".join(collected).strip()
             self.call_from_thread(conv_log.update_ai_response, widget_id, final_text, True)
@@ -597,6 +664,7 @@ class GhostTraceApp(App[int]):
         finally:
             self.is_generating = False
             self.call_from_thread(self._refresh_subsystem_status)
+            self.call_from_thread(self._ensure_input_focus)
 
     def _get_director_context(self) -> dict[str, bool]:
         """Context check providing application-state metadata to HorrorAudioDirector."""
@@ -642,6 +710,7 @@ class GhostTraceApp(App[int]):
         """Action handler to clear the conversation log (Ctrl+L)."""
         conv_log = self.query_one("#conversation-log", ConversationLog)
         conv_log.clear_log()
+        self._ensure_input_focus()
 
     def notify(
         self,
@@ -663,9 +732,15 @@ class GhostTraceApp(App[int]):
         self.exit(0)
 
     def action_cancel_input(self) -> None:
-        """Action handler to reset input field (Escape)."""
+        """Action handler to reset input field or stop ongoing AI generation (Escape)."""
+        from ghosttrace.core.diagnostics import diag_log
+
+        diag_log("APP.CANCEL_INPUT", f"is_generating={self.is_generating}")
         cmd_input = self.query_one("#command-input", CommandInput)
         cmd_input.value = ""
         self.history.reset_cursor()
         if self.is_generating:
+            diag_log("APP.STOP_GENERATION.CALLING")
             self.ai_engine.stop_generation()
+            diag_log("APP.STOP_GENERATION.CALLED")
+        self._ensure_input_focus()

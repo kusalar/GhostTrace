@@ -329,6 +329,13 @@ class WhisperScheduler:
             self._is_shutdown = False
         self.schedule_next()
 
+    def on_settings_changed(self) -> None:
+        """Dynamically respond to changes in audio preferences or mute toggles."""
+        if self.is_enabled:
+            self.start()
+        else:
+            self.cancel()
+
     def shutdown(self) -> None:
         """Safely shut down the scheduler and release timer handles."""
         with self._lock:

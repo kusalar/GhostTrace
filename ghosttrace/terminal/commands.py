@@ -2000,7 +2000,7 @@ def handle_audio(args: list[str], context: CommandContext) -> CommandResult:
                 output="Cannot test audio: audio is MUTED. Use 'audio unmute' first.",
                 command_name="audio",
             )
-        if not audio_mgr.backend.is_available():
+        if not audio_mgr.is_available():
             return CommandResult(
                 success=False,
                 output="Audio hardware playback device is UNAVAILABLE.",
@@ -2008,9 +2008,14 @@ def handle_audio(args: list[str], context: CommandContext) -> CommandResult:
             )
         dispatched = audio_mgr.play_test_sound()
         if dispatched:
+            status = audio_mgr.backend.get_status()
+            dev_name = status.get("device_name", "Hardware Output")
             return CommandResult(
                 success=True,
-                output="[bold #00ff66]Dispatched test sound effect (notification ping).[/]",
+                output=(
+                    f"[bold #00ff66]Dispatched test sound effect (notification ping) to "
+                    f"{dev_name}.[/]"
+                ),
                 command_name="audio",
             )
         return CommandResult(

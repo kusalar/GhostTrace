@@ -107,11 +107,18 @@ class ConversationLog(VerticalScroll):
 
     def update_ai_stream(self, widget_id: str, current_text: str) -> None:
         """Update active streaming text in the target widget."""
+        from ghosttrace.core.diagnostics import diag_log
+
+        diag_log("CONV.UPDATE_STREAM.START", f"widget_id={widget_id}")
         try:
             widget = self.query_one(f"#{widget_id}", Static)
+            diag_log("CONV.UPDATE_STREAM.WIDGET_FOUND")
             widget.update(f"[bold #00ff66]GHOSTTRACE:[/]\n{current_text}")
+            diag_log("CONV.UPDATE_STREAM.WIDGET_UPDATED")
             self.scroll_end(animate=False)
-        except Exception:
+            diag_log("CONV.UPDATE_STREAM.SCROLL_DONE")
+        except Exception as exc:
+            diag_log("CONV.UPDATE_STREAM.ERROR", str(exc))
             pass
 
     def update_ai_response(self, widget_id: str, final_text: str, success: bool) -> None:
